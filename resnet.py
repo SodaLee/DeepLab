@@ -1,4 +1,4 @@
-import tensorflow as tensorflow
+import tensorflow as tf
 
 def subsample(inputs, factor, scope=None):
 	if factor == 1:
@@ -19,5 +19,5 @@ def bottleneck(inputs,
 			shortcut = subsample(inputs, stride, 'shortcut')
 		else:
 			shortcut = tf.nn.conv2d(inputs, [1, 1, 1, depth], [1, stride, stride, 1], padding='SAME')
-			shortcut = tf.nn.relu6(shortcut)
 
+		residual = tf.nn.conv2d(inputs, [1, 1, 1, depth_bottleneck], [1, 1, 1, 1], name='conv1')
