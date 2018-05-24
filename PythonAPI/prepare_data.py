@@ -4,6 +4,7 @@ import skimage.io as io
 import tensorflow as tf
 from urllib.request import urlretrieve
 import os
+import json
 
 
 dataDir='..'
@@ -11,7 +12,9 @@ dataType='val2017'
 annFile='{}/annotations/instances_{}.json'.format(dataDir,dataType)
 imgDir = '../data/imgs'
 annDir = '../data/anns'
-num_classes = 91
+num_classes = 80
+with open('cat_dict.json', 'r') as f:
+	cat_dict = json.load(f)
 
 coco=COCO(annFile)
 
@@ -43,7 +46,7 @@ def prepare_labels(coco, imgIds):
 		anns = coco.loadAnns(annIds)
 		label = np.zeros(num_classes)
 		for ann in anns:
-			label[ann['category_id']-1] = 1
+			label[cat_dict['id2c'][ann['category_id']]] = 1
 		labels.append(label)
 	return tf.concat(labels, -1)
 
@@ -60,6 +63,6 @@ def prepare_segs(coco, imgIds):
 		masks = np.zeros([height, width, num_classes])
 		for ann in anns:
 			mask = coco.annToMask(ann)
-			masks[ann['category_id']-1] += mask
+			masks[cat_dict['id2c'][ann['category_id']]] += mask
 		seg.append(masks)
 	return tf.concat(seg, -1)
