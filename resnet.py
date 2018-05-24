@@ -1,14 +1,15 @@
 import tensorflow as tf
 
-def conv_layer(inputs, fsize, name, stride = [1,1,1,1],
+def conv_layer(inputs, fsize, channel_out, name, stride = [1,1,1,1],
 	rate = 1, padding = "SAME", use_bn = True, activate = tf.nn.relu6):
+	filter_size = [fsize, fsize, inputs.shape()[-1], channel_out]
 	with tf.name_scope(name):
-		f = tf.Variable(tf.truncated_normal(fsize, stddev = 0.1), name = "filter")
+		f = tf.Variable(tf.truncated_normal(filter_size, stddev = 0.1), name = "filter")
 		conv = tf.nn.conv2d(inputs, f, stride, padding, dilations = [rate, rate, 1, 1], name = "atrous convolution")
 		if use_bn:
 			mean, var = tf.nn.moments(conv, axes = [0, 1, 2])
-			offset = tf.Variable(tf.zeros(conv.get_shape()), name = "offset")
-			scale = tf.Variable(tf.ones(conv.get_shape()), name = "scale")
+			offset = tf.Variable(tf.zeros(conv.shape()), name = "offset")
+			scale = tf.Variable(tf.ones(conv.shape()), name = "scale")
 			conv = tf.nn.batch_normalization(conv, mean, var, offset, scale, tf.constant(1e-3), "batch_normalization")
 		if activate is not None:
 			return activate(conv, name = "activation")
@@ -24,42 +25,52 @@ def dense_layer(inputs, out, name, use_bias = True):
 			dense = tf.nn.bias_add(dense, bias)
 		return dense
 
-def residue_block(inputs, depth, channel_out, name, rate = 1, expand_dim = False):
-	if expand_dim:
-		stride = [1, 2, 2, 1]
-	else:
-		stride = [1, 1, 1, 1]
-	chann = inputs.get_shape()[-1]
+def residue_block(inputs, depth, channel_out, name, half_size = False):
 	with tf.name_scope(name):
-		down = conv_layer(inputs, [1, 1, chann, depth], "downsample", use_bn = False)
-		conv = conv_layer(down, [3, 3, depth, depth], "convolution", rate = rate, stride = stride)
-		up = conv_layer(conv, [1, 1, depth, channel_out], "up sample", use_bn = False)
-		if expand_dim:
-			shortcut = conv_layer(inputs, [1, 1, chann, channel_out], "shortcut", stride, use_bn = False)
-		else
+		if half_size:
+			stride = [1,2,2,1]
+			shortcut = conv_layer(inputs, 1, channel_out, "shortcut", stride = stride)
+		else:
 			shortcut = inputs
-		return tf.nn.relu6(up + shortcut)
+			stride = [1,1,1,1]
+		
+		down = conv_layer(inputs, 1, depth, "in", stride = stride)
+		conv = conv_layer(down, 3, depth, "convolution")
+		up = conv_layer(conv, 1, channel_out, "out", activate = None)
 
-def resnet(input, size, rate, dense_out = None):
-	chann = int(input.get_shape()[-1])
-	conv = conv_layer(input, [7, 7, chann, 64], "conv1")
-	conv = tf.nn.max_pool(input, [1, 3, 3, 1], [1, 2, 2, 1], "SAME", name = "max_pool_1")
-	chann = 64
-	for i, s in enumerate(size):
-		conv = residue_block(conv, chann, chann * 4, "conv%d_1"%(i+2), rate = rate, expand_dim = (i != 0))
-		for j in range(1, s):
-			conv = residue_block(conv, chann, chann * 4, "conv%d_%d"(i+2, j+1), rate = rate)
-		chann *= 2
-	if dense_out is not None:
-		fc = tf.reduce_mean(conv, axis = [1, 2])
-		fc = tf.dense_layer(conv, dense_out, "dense")
-		return conv, fc
+		return tf.nn.relu6(up + shortcut, name = "activation")
+
+def atrous_residue_block(inputs, depth, channel_out, rate, name):
+	with tf.name_scope(name):
+		down = conv_layer(inputs, 1, depth, "in")
+		conv = conv_layer(down, 3, depth, "convolution", rate = rate)
+		up = conv_layer(conv, 1, channel_out, "out", activate = None)
+		return tf.nn.relu6(up + inputs, name = "activation")
+
+def resnet(x, nconvs, dense_out = 0):
+	assert nconvs[0] == 1, "conv1 should only contain one convolution layer"
+	conv1 = conv_layer(x, 7, 64, "conv1", stride = [1,2,2,1])
+	pool1 = tf.nn.max_pool(conv1, [1,3,3,1], [1,2,2,1], padding = "SAME", name = "pool1")
+	conv = pool1
+	depth = 64
+	for i in range(1, len(nconvs) - 2):
+		for j in range(nconvs[i]):
+			conv = residue_block(conv, depth, depth * 4, "conv%d_%d"%(i+1,j+1), half_size = (i > 1 and j == 0))
+		depth *= 2
+
+	for i in range(len(nconvs) - 2, len(nconvs)):
+		for j in range(nconvs[i]):
+			conv = atrous_residue_block(conv, depth, depth * 4, 2 * (i - len(nconvs) + 3), "conv%d_%d"%(i+1,j+1))
+		depth *= 2
+	if dense_out > 0:
+		avg = tf.reduce_mean(conv, axis = [1, 2], name = "global average pooling")
+		dense = dense_layer(avg, dense_out, "dense")
+		return conv, dense
 	else:
 		return conv
 
-def resnet_50(input, rate, dense_out = None):
-	return resnet(input, [3, 4, 6, 3], rate, dense_out)
+def resnet_50(x, dense_out = 0):
+	return resnet(x, [1, 3, 4, 6, 3], dense_out)
 
-def resnet_101(input, rate, dense_out = None):
-	return resnet(input, [3, 4, 23, 3], rate, dense_out)
-	
+def resnet_101(x, dense_out = 0):
+	return resnet(x, [1, 3, 4, 23, 3], dense_out)
