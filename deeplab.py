@@ -28,6 +28,7 @@ class deeplab_v3_plus(object):
 			if self.dense_out != 0:
 				self.dense = tf.reduce_mean(dcnn, axis = [1, 2])
 				self.dense = denes_layer(self.dense, self.dense_out)
+			dcnn = tf.stop_gradient(dcnn)
 			aspp = self._ASPP(dcnn, aspp_channel1, [6, 12, 18, 24], "ASPP")
 			aspp = conv_layer(aspp, 1, aspp_channel2, "conv")
 			return dcnn, aspp
@@ -36,7 +37,7 @@ class deeplab_v3_plus(object):
 	def _decoder(self, dcnn, aspp, channels, name):
 		with name_scope(name):
 			conv1 = conv_layer(dcnn, 1, channels[0], "conv1")
-			conv = tf.concat([conv1, upsample(dcnn, 2, "upsample1")], -1)
+			conv = tf.concat([conv1, self._upsample(aspp, 2, "upsample1")], -1)
 			for i, c in enumerate(channels, 1):
 				conv = conv_layer(conv, 3, c, "conv%d"%(i+1))
 			conv = self._upsample(conv, 2, "upsample2")
@@ -49,7 +50,7 @@ class deeplab_v3_plus(object):
 		return self.dense
 '''
 sample:
-deeplab = deeplab_v3_plus(x, [256, 256], [48, 512, 80], 100)
+deeplab = deeplab_v3_plus(x, [256, 256], [48, 80], 100)
 net = deeplab.get_pred()
 resnet_train = deeplab.get_dense()
 ...
