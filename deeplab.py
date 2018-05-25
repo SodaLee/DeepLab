@@ -4,8 +4,8 @@ from resnet import *
 class deeplab_v3_plus(object):
 	def __init__(self, x, aspp_channels, decoder_channels, dense_out = 0):
 		self.dense_out = dense_out
-		self.dcnn, self.aspp = encoder(x, aspp_channels[0], aspp_channels[1], "encoder")
-		self.net = decoder(dcnn, aspp, decoder_channels, "decoder")
+		self.dcnn, self.aspp = self._encoder(x, aspp_channels[0], aspp_channels[1], "encoder")
+		self.net = self._decoder(dcnn, aspp, decoder_channels, "decoder")
 
 	def _ASPP(self, x, channel_out, dilations, name):
 		out = []

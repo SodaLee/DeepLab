@@ -6,63 +6,69 @@ from urllib.request import urlretrieve
 import os
 import json
 
+class prepare_dataset(object):
+	def __init__(self, coco):
+		self.coco = coco
+		self.imgDir = './data/imgs'
+		self.annDir = './data/anns'
+		self.imgIds = self.coco.getImgIds()
+		with open('PythonAPI/cat_dict.json', 'r') as f:
+			self.cat_dict = json.load(f)
+		self.num_classes = 80
 
-dataDir='..'
-dataType='val2017'
-annFile='{}/annotations/instances_{}.json'.format(dataDir,dataType)
-imgDir = '../data/imgs'
-annDir = '../data/anns'
-num_classes = 80
-with open('cat_dict.json', 'r') as f:
-	cat_dict = json.load(f)
+		self.res_dataset = tf.data.Dataset.from_tensor_slices(self.imgIds)
+		self.res_dataset = self.res_dataset.map(lambda imgId: tuple(tf.py_func(self._parse_res, [imgId], [tf.float32, tf.float32])))
+		self.res_dataset = self.res_dataset.map(self._resize_res)
+		self.res_dataset = self.res_dataset.repeat()
+		self.res_dataset = self.res_dataset.batch(16)
+		
+		self.deep_dataset = tf.data.Dataset.from_tensor_slices(self.imgIds)
+		self.deep_dataset = self.deep_dataset.map(lambda imgId: tuple(tf.py_func(self._parse_deep, [imgId], [tf.float32, tf.float32])))
+		self.deep_dataset = self.deep_dataset.map(self._resize_deep)
+		self.deep_dataset = self.deep_dataset.repeat()
+		self.deep_dataset = self.deep_dataset.batch(16)
 
-coco=COCO(annFile)
-
-def prepare_imgs(coco, imgIds):
-	'''
-	return: imgs [batch_size, height, width, channels]
-	'''
-	imgs = coco.loadImgs(imgIds)
-	rimgs = []
-	for img in imgs:
-		fname = os.path.join(imgDir, img['file_name'])
-		try:
-			I = io.imread(fname)
-		except:
+	def _parse_res(self, imgId):
+		img = self.coco.loadImgs(imgId)[0]
+		fname = os.path.join(self.imgDir, img['file_name'])
+		if not os.path.exists(fname):
 			urlretrieve(img['coco_url'], fname)
-			I = io.imread(fname)
-		rimgs.append(I)
-	return tf.concat(rimgs, -1)
+		img_string = tf.read_file(fname)
+		img_decoded = tf.decode_image(img_string)
 
-
-def prepare_labels(coco, imgIds):
-	'''
-	return: one hot labels [batch_size, num_classes]
-	'''
-	imgs = coco.loadImgs(imgIds)
-	labels = []
-	for img in imgs:
-		annIds = coco.getAnnIds(img['id'])
-		anns = coco.loadAnns(annIds)
-		label = np.zeros(num_classes)
+		annIds = self.coco.getAnnIds(img['id'])
+		anns = self.coco.loadAnns(annIds)
+		label = np.zeros(self.num_classes, np.float32)
 		for ann in anns:
-			label[cat_dict['id2c'][ann['category_id']]] = 1
-		labels.append(label)
-	return tf.concat(labels, -1)
+			label[self.cat_dict['id2c'][ann['category_id']]] = 1
 
+		return img_decoded, label
 
-def prepare_segs(coco, imgIds):
-	'''
-	return: segmentations [batch_size, height, width, num_classes]
-	'''
-	imgs = coco.loadImgs(imgIds)
-	seg = []
-	for img in imgs:
-		annIds = coco.getAnnIds(img['id'])
-		anns = coco.loadAnns(annIds)
-		masks = np.zeros([height, width, num_classes])
+	def _parse_deep(self, imgId):
+		img = self.coco.loadImgs(imgId)[0]
+		fname = os.path.join(self.imgDir, img['file_name'])
+		if not os.path.exists(fname):
+			urlretrieve(img['coco_url'], fname)
+		img_string = tf.read_file(fname)
+		img_decoded = tf.decode_image(img_string)
+
+		annIds = self.coco.getAnnIds(img['id'])
+		anns = self.coco.loadAnns(annIds)
+		masks = np.zeros([self.num_classes, img.shape[0], img.shape[1]])
 		for ann in anns:
-			mask = coco.annToMask(ann)
-			masks[cat_dict['id2c'][ann['category_id']]] += mask
-		seg.append(masks)
-	return tf.concat(seg, -1)
+			mask = self.coco.annToMask(ann)
+			masks[self.cat_dict['id2c'][ann['category_id']]] += mask
+
+		return img_decoded, masks.transpose(1, 2, 0).astype(np.float32)
+
+	def _resize_res(self, img, label):
+		img.set_shape([None, None, None])
+		img = tf.image.resize_images(img, [512, 512])
+		return img, label
+
+	def _resize_deep(self, img, masks):
+		img.set_shape([None, None, None])
+		img = tf.image.resize_images(img, [512, 512])
+		masks.set_shape([None, None, None])
+		masks = tf.image.resize_images(masks, [512, 512])
+		return img, masks
