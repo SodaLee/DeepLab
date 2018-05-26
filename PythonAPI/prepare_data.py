@@ -19,13 +19,11 @@ class prepare_dataset(object):
 		self.res_dataset = tf.data.Dataset.from_tensor_slices(self.imgIds)
 		self.res_dataset = self.res_dataset.map(lambda imgId: tuple(tf.py_func(self._parse_res, [imgId], [tf.float32, tf.float32])))
 		self.res_dataset = self.res_dataset.map(self._resize_res)
-		self.res_dataset = self.res_dataset.repeat()
 		self.res_dataset = self.res_dataset.batch(16)
 		
 		self.deep_dataset = tf.data.Dataset.from_tensor_slices(self.imgIds)
 		self.deep_dataset = self.deep_dataset.map(lambda imgId: tuple(tf.py_func(self._parse_deep, [imgId], [tf.float32, tf.float32])))
 		self.deep_dataset = self.deep_dataset.map(self._resize_deep)
-		self.deep_dataset = self.deep_dataset.repeat()
 		self.deep_dataset = self.deep_dataset.batch(16)
 
 	def _parse_res(self, imgId):
