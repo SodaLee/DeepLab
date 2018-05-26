@@ -2,6 +2,9 @@
 __pycache__/
 *.py[cod]
 *$py.class
+annotations/
+data/
+PythonAPI/pycocotools/_mask.c
 
 # C extensions
 *.so

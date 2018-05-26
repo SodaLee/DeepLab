@@ -1,5 +1,6 @@
 from PythonAPI.prepare_data import prepare_dataset
 import deeplab
+import tensorflow as tf
 from PythonAPI.pycocotools.coco import COCO
 
 def main(train_type='Resnet', restore=False, maxiter=10, test=False):
@@ -92,6 +93,7 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 				saver.save(sess, "./model/model_%d.ckpt" % i)
 				print('model saved')
 		elif train_type == 'Deeplab':
+			pass
 		else:
 			pass
 
