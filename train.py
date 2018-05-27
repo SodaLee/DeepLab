@@ -92,10 +92,10 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 			for i in list(range(maxiter)):
 				cnt = 0
 				total_loss = 0.0
-				sess.run(res_train_iter.initializer)
+				sess.run(deep_train_iter.initializer)
 				while True:
 					try:
-						imgs, gt = sess.run(next_deep_train)
+						#imgs, gt = sess.run(next_deep_train)
 						_, _loss = sess.run([res_op, res_mean_loss], feed_dict={_imgs: imgs, _gt: gt})
 						total_loss += _loss
 						cnt += 1
@@ -108,10 +108,10 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 
 				cnt = 0
 				total_loss = 0.0
-				sess.run(res_val_iter.initializer)
+				sess.run(deep_val_iter.initializer)
 				while True:
 					try:
-						imgs, gt = sess.run(next_deep_val)
+						#imgs, gt = sess.run(next_deep_val)
 						_, _loss = sess.run([res_op, res_mean_loss], feed_dict={_imgs: imgs, _gt: gt})
 						total_loss += _loss
 						cnt += 1
