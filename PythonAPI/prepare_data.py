@@ -34,7 +34,7 @@ def prepare_dataset(coco):
 
 		annLists = [coco.imgToAnns[imgId]]
 		anns = list(itertools.chain.from_iterable(annLists))
-		masks = np.zeros([num_classes, img.shape[0], img.shape[1]])
+		masks = np.zeros([num_classes, img_decoded.shape[0], img_decoded.shape[1]])
 		for ann in anns:
 			mask = coco.annToMask(ann)
 			masks[cat_dict['id2c'][str(ann['category_id'])]] += mask

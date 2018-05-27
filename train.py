@@ -75,7 +75,6 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 				sess.run(res_val_iter.initializer)
 				while True:
 					try:
-						# imgs, labels = sess.run(next_res_val)
 						_, _loss = sess.run([res_op, res_mean_loss], feed_dict={training: False, res_end: True})
 						total_loss += _loss
 						cnt += 1
@@ -95,8 +94,7 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 				sess.run(deep_train_iter.initializer)
 				while True:
 					try:
-						#imgs, gt = sess.run(next_deep_train)
-						_, _loss = sess.run([res_op, res_mean_loss], feed_dict={_imgs: imgs, _gt: gt})
+						_, _loss = sess.run([res_op, res_mean_loss], feed_dict={training: True, res_end: False})
 						total_loss += _loss
 						cnt += 1
 						if cnt % 25 == 0:
@@ -111,8 +109,7 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 				sess.run(deep_val_iter.initializer)
 				while True:
 					try:
-						#imgs, gt = sess.run(next_deep_val)
-						_, _loss = sess.run([res_op, res_mean_loss], feed_dict={_imgs: imgs, _gt: gt})
+						_, _loss = sess.run([res_op, res_mean_loss], feed_dict={training: False, res_end: False})
 						total_loss += _loss
 						cnt += 1
 						if cnt % 25 == 0:

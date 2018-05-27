@@ -10,12 +10,12 @@ def main(train_type='Resnet'):
 	val_annFile = './annotations/instances_val2017.json'
 
 	val_coco = COCO(val_annFile)
-	res_val_dataset, _ = prepare_dataset(val_coco)
+	res_val_dataset, deep_val_dataset = prepare_dataset(val_coco)
 
 	res_val_iter = res_val_dataset.make_initializable_iterator()
+	deep_val_iter = deep_val_dataset.make_initializable_iterator()
 	next_res_val = res_val_iter.get_next()
-
-	_imgs, _y = next_res_val
+	next_deep_val = deep_val_iter.get_next()
 
 	with tf.Session() as sess:
 		sess.run(tf.global_variables_initializer())
@@ -24,10 +24,10 @@ def main(train_type='Resnet'):
 		if train_type == 'Resnet':
 				cnt = 0
 				total_loss = 0.0
-				sess.run(res_val_iter.initializer)
+				sess.run(deep_val_iter.initializer)
 				while True:
 					try:
-						imgs, y = sess.run([_imgs, _y])
+						imgs, y = sess.run([next_deep_val])
 					except tf.errors.OutOfRangeError:
 						break
 		else:
