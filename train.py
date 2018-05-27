@@ -29,19 +29,20 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 	training = tf.placeholder(tf.bool)
 	res_end = tf.placeholder(tf.bool)
 	_imgs, _y = tf.cond(res_end,
-		tf.cond(training, lambda: next_res_train, lambda: next_res_val),
-		tf.cond(training, lambda: next_deep_train, lambda: next_deep_val)
+		lambda: tf.cond(training, lambda: next_res_train, lambda: next_res_val),
+		lambda: tf.cond(training, lambda: next_deep_train, lambda: next_deep_val)
 		)
+	print(_imgs.get_shape())
 
 	_deeplab = deeplab.deeplab_v3_plus(_imgs, [128, 64], [48, num_classes], num_classes)
 	res_out = _deeplab.get_dense()
-	res_loss = tf.nn.softmax_cross_entropy_with_logits(labels=_y, logits=res_out, name='res_loss')
-	res_mean_loss = tf.nn.reduce_mean(res_loss)
+	res_loss = tf.nn.softmax_cross_entropy_with_logits_v2(labels=_y, logits=res_out, name='res_loss')
+	res_mean_loss = tf.reduce_mean(res_loss)
 	res_op = tf.train.AdamOptimizer().minimize(res_loss)
 
 	pred_out = _deeplab.get_pred()
-	pred_loss = tf.nn.softmax_cross_entropy_with_logits(labels=tf.reshape(_y, [-1, num_classes]), logits=tf.reshape(pred_out, [-1, num_classes]), name='pred_loss')
-	pred_mean_loss = tf.nn.reduce_mean(pred_loss)
+	pred_loss = tf.nn.softmax_cross_entropy_with_logits_v2(labels=tf.reshape(_y, [-1, num_classes]), logits=tf.reshape(pred_out, [-1, num_classes]), name='pred_loss')
+	pred_mean_loss = tf.reduce_mean(pred_loss)
 	pred_op = tf.train.AdamOptimizer().minimize(pred_loss)
 
 	saver = tf.train.Saver()
@@ -50,7 +51,7 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 			saver.restore(sess, "./model/model.ckpt")
 			print('restored')
 		else:
-			sess.run(tf.global_variable_initializer())
+			sess.run(tf.global_variables_initializer())
 			print('initial done')
 
 		if train_type == 'Resnet':

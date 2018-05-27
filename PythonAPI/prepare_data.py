@@ -32,7 +32,7 @@ class prepare_dataset(object):
 		if not os.path.exists(fname):
 			urlretrieve(img['coco_url'], fname)
 		img_string = tf.read_file(fname)
-		img_decoded = tf.decode_image(img_string)
+		img_decoded = tf.image.decode_jpeg(img_string, 3)
 
 		annIds = self.coco.getAnnIds(img['id'])
 		anns = self.coco.loadAnns(annIds)
@@ -48,7 +48,7 @@ class prepare_dataset(object):
 		if not os.path.exists(fname):
 			urlretrieve(img['coco_url'], fname)
 		img_string = tf.read_file(fname)
-		img_decoded = tf.decode_image(img_string)
+		img_decoded = tf.image.decode_jpeg(img_string, 3)
 
 		annIds = self.coco.getAnnIds(img['id'])
 		anns = self.coco.loadAnns(annIds)
@@ -60,13 +60,13 @@ class prepare_dataset(object):
 		return img_decoded, masks.transpose(1, 2, 0).astype(np.float32)
 
 	def _resize_res(self, img, label):
-		img.set_shape([None, None, None])
+		img.set_shape([None, None, 3])
 		img = tf.image.resize_images(img, [512, 512])
 		return img, label
 
 	def _resize_deep(self, img, masks):
-		img.set_shape([None, None, None])
+		img.set_shape([None, None, 3])
 		img = tf.image.resize_images(img, [512, 512])
-		masks.set_shape([None, None, None])
+		masks.set_shape([None, None, self.num_classes])
 		masks = tf.image.resize_images(masks, [512, 512])
 		return img, masks
