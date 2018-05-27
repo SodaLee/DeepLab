@@ -23,18 +23,24 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 	next_res_val = res_val_iter.get_next()
 	next_deep_val = deep_val_iter.get_next()
 
-	_imgs = tf.placeholder(tf.float32, [batch_size, None, None, 3])
-	_labels = tf.placeholder(tf.float32, [batch_size, num_classes])
-	_gt = tf.placeholder(tf.float32, [batch_size, None, None, num_classes])
+	# _imgs = tf.placeholder(tf.float32, [batch_size, None, None, 3])
+	# _labels = tf.placeholder(tf.float32, [batch_size, num_classes])
+	# _gt = tf.placeholder(tf.float32, [batch_size, None, None, num_classes])
+	training = tf.placeholder(tf.bool)
+	res_end = tf.placeholder(tf.bool)
+	_imgs, _y = tf.cond(res_end,
+		tf.cond(training, next_res_train, next_res_val),
+		tf.cond(training, next_deep_train, next_deep_val)
+		)
 
 	_deeplab = deeplab.deeplab_v3_plus(_imgs, [128, 64], [48, num_classes], num_classes)
 	res_out = _deeplab.get_dense()
-	res_loss = tf.nn.softmax_cross_entropy_with_logits(labels=_labels, logits=res_out, name='res_loss')
+	res_loss = tf.nn.softmax_cross_entropy_with_logits(labels=_y, logits=res_out, name='res_loss')
 	res_mean_loss = tf.nn.reduce_mean(res_loss)
 	res_op = tf.train.AdamOptimizer().minimize(res_loss)
 
 	pred_out = _deeplab.get_pred()
-	pred_loss = tf.nn.softmax_cross_entropy_with_logits(labels=tf.reshape(_gt, [-1, num_classes]), logits=tf.reshape(pred_out, [-1, num_classes]), name='pred_loss')
+	pred_loss = tf.nn.softmax_cross_entropy_with_logits(labels=tf.reshape(_y, [-1, num_classes]), logits=tf.reshape(pred_out, [-1, num_classes]), name='pred_loss')
 	pred_mean_loss = tf.nn.reduce_mean(pred_loss)
 	pred_op = tf.train.AdamOptimizer().minimize(pred_loss)
 
@@ -54,8 +60,7 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 				sess.run(res_train_iter.initializer)
 				while True:
 					try:
-						imgs, labels = sess.run(next_res_train)
-						_, _loss = sess.run([res_op, res_mean_loss], feed_dict={_imgs: imgs, _labels: labels})
+						_, _loss = sess.run([res_op, res_mean_loss], feed_dict={training: True, res_end: True})
 						total_loss += _loss
 						cnt += 1
 						if cnt % 25 == 0:
@@ -70,8 +75,8 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 				sess.run(res_val_iter.initializer)
 				while True:
 					try:
-						imgs, labels = sess.run(next_res_val)
-						_, _loss = sess.run([res_op, res_mean_loss], feed_dict={_imgs: imgs, _labels: labels})
+						# imgs, labels = sess.run(next_res_val)
+						_, _loss = sess.run([res_op, res_mean_loss], feed_dict={training: False, res_end: True})
 						total_loss += _loss
 						cnt += 1
 						if cnt % 25 == 0:
