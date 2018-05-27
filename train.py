@@ -29,8 +29,8 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 	training = tf.placeholder(tf.bool)
 	res_end = tf.placeholder(tf.bool)
 	_imgs, _y = tf.cond(res_end,
-		tf.cond(training, next_res_train, next_res_val),
-		tf.cond(training, next_deep_train, next_deep_val)
+		tf.cond(training, lambda: next_res_train, lambda: next_res_val),
+		tf.cond(training, lambda: next_deep_train, lambda: next_deep_val)
 		)
 
 	_deeplab = deeplab.deeplab_v3_plus(_imgs, [128, 64], [48, num_classes], num_classes)
