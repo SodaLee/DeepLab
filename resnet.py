@@ -6,7 +6,8 @@ def conv_layer(inputs, fsize, channel_out, name, stride = [1,1,1,1],
 	filter_size = tf.TensorShape(filter_size)
 	with tf.name_scope(name):
 		f = tf.Variable(tf.truncated_normal(filter_size, stddev = 0.1), name = "filter")
-		conv = tf.nn.conv2d(inputs, f, stride, padding, dilations = [rate, rate, 1, 1], name = "atrous_convolution")
+		convname = "atrous_convolution" if rate != 1 else "convolution"
+		conv = tf.nn.conv2d(inputs, f, stride, padding, dilations = [1, 1, rate, rate], name = convname)
 		if use_bn:
 			mean, var = tf.nn.moments(conv, axes = [0])
 			offset = tf.Variable(tf.zeros(conv.get_shape()[1:]), name = "offset")

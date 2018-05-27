@@ -32,7 +32,6 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 		lambda: tf.cond(training, lambda: next_res_train, lambda: next_res_val),
 		lambda: tf.cond(training, lambda: next_deep_train, lambda: next_deep_val)
 		)
-	print(_imgs.get_shape())
 
 	_deeplab = deeplab.deeplab_v3_plus(_imgs, [128, 64], [48, num_classes], num_classes)
 	res_out = _deeplab.get_dense()
