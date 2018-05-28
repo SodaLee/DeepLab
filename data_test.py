@@ -28,7 +28,8 @@ def main(train_type='Resnet'):
 				while True:
 					try:
 						imgs, y = sess.run(next_res_val)
-						print(imgs.shape, y.shape)
+						cnt += 16
+						print('total', cnt, imgs.shape, y.shape)
 					except tf.errors.OutOfRangeError:
 						break
 		else:
