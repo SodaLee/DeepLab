@@ -61,14 +61,14 @@ def prepare_dataset(coco):
 		cat_dict = json.load(f)
 	num_classes = 80
 
-	res_dataset = tf.data.Dataset.from_tensor_slices(imgIds)
-	res_dataset = res_dataset.map(lambda imgId: tf.py_func(_parse_res, [imgId], [tf.float32, tf.float32], name='parse_res'))
-	res_dataset = res_dataset.map(_resize_res)
-	res_dataset = res_dataset.batch(16)
-	
-	deep_dataset = tf.data.Dataset.from_tensor_slices(imgIds)
-	deep_dataset = deep_dataset.map(lambda imgId: tf.py_func(_parse_deep, [imgId], [tf.float32, tf.float32], name='parse_deep'))
-	deep_dataset = deep_dataset.map(_resize_deep)
-	deep_dataset = deep_dataset.batch(16)
+	dataset = tf.data.Dataset.from_tensor_slices(imgIds)
 
-	return res_dataset, deep_dataset
+	res_dataset = dataset.map(lambda imgId: tf.py_func(_parse_res, [imgId], [tf.float32, tf.float32], name='parse_res'))
+	res_dataset = res_dataset.map(_resize_res)
+	res_dataset = res_dataset.batch(16).repeat()
+	
+	deep_dataset = dataset.map(lambda imgId: tf.py_func(_parse_deep, [imgId], [tf.float32, tf.float32], name='parse_deep'))
+	deep_dataset = deep_dataset.map(_resize_deep)
+	deep_dataset = deep_dataset.batch(16).repeat()
+
+	return res_dataset, deep_dataset, len(imgIds)
