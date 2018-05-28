@@ -24,10 +24,11 @@ def main(train_type='Resnet'):
 		if train_type == 'Resnet':
 				cnt = 0
 				total_loss = 0.0
-				sess.run(deep_val_iter.initializer)
+				sess.run(res_val_iter.initializer)
 				while True:
 					try:
-						imgs, y = sess.run([next_deep_val])
+						imgs, y = sess.run(next_res_val)
+						print(imgs.shape, y.shape)
 					except tf.errors.OutOfRangeError:
 						break
 		else:
