@@ -9,10 +9,11 @@ def conv_layer(inputs, fsize, channel_out, name, stride = [1,1,1,1],
 		convname = "atrous_convolution" if rate != 1 else "convolution"
 		conv = tf.nn.conv2d(inputs, f, stride, padding, dilations = [1, 1, rate, rate], name = convname)
 		if use_bn:
-			mean, var = tf.nn.moments(conv, axes = [0])
-			offset = tf.Variable(tf.zeros(conv.get_shape()[1:]), name = "offset")
-			scale = tf.Variable(tf.ones(conv.get_shape()[1:]), name = "scale")
-			conv = tf.nn.batch_normalization(conv, mean, var, offset, scale, tf.constant(1e-3), "batch_normalization")
+			mean, var = tf.nn.moments(conv, axes = [0, 1, 2])
+			offset = tf.Variable(tf.zeros(conv.get_shape()[-1]), name = "offset")
+			scale = tf.Variable(tf.ones(conv.get_shape()[-1]), name = "scale")
+			conv = tf.nn.batch_norm_with_global_normalization(
+				conv, mean, var, offset, scale, tf.constant(1e-3), True, "batch_normalization")
 		if activate is not None:
 			return activate(conv, name = "activation")
 		else:

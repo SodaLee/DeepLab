@@ -34,7 +34,7 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 		tf.cast(
 			tf.equal(
 				tf.argmax(res_out, axis = -1),
-				_labels
+				tf.argmax(_labels, axis = -1)
 			),
 			tf.float32
 		)
