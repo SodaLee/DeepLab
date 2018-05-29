@@ -1,5 +1,6 @@
 import tensorflow as tf
 from resnet import *
+from utli import *
 
 class deeplab_v3_plus(object):
 	def __init__(self, x, aspp_channels, decoder_channels, dense_out = 0):

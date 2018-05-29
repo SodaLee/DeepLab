@@ -8,7 +8,7 @@ import os
 import cv2
 import json
 
-def prepare_dataset(coco):
+def prepare_dataset(coco, batch_size):
 
 	def _parse_res(imgId):
 		img = coco.imgs[imgId]
@@ -65,10 +65,10 @@ def prepare_dataset(coco):
 
 	res_dataset = dataset.map(lambda imgId: tf.py_func(_parse_res, [imgId], [tf.float32, tf.float32], name='parse_res'))
 	res_dataset = res_dataset.map(_resize_res)
-	res_dataset = res_dataset.batch(16).repeat()
+	res_dataset = res_dataset.batch(batch_size).repeat()
 	
 	deep_dataset = dataset.map(lambda imgId: tf.py_func(_parse_deep, [imgId], [tf.float32, tf.float32], name='parse_deep'))
 	deep_dataset = deep_dataset.map(_resize_deep)
-	deep_dataset = deep_dataset.batch(16).repeat()
+	deep_dataset = deep_dataset.batch(batch_size).repeat()
 
 	return res_dataset, deep_dataset, len(imgIds)
