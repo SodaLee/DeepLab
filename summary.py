@@ -30,6 +30,8 @@ class summarizer(object):
 		self.step = 0
 
 	def _endline(self):
+		if len(self.buffer) == 0:
+			return
 		for key in self.buffer[-1]:
 			if self.cnt[key] > 0:
 				self.buffer[-1][key] /= self.cnt[key]

@@ -4,6 +4,7 @@ __pycache__/
 *$py.class
 annotations/
 data/
+log/
 PythonAPI/pycocotools/_mask.c
 
 # C extensions

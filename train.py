@@ -48,7 +48,7 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 
 	saver = tf.train.Saver()
 	summary = summarizer(
-		'/log/log%s.csv'%train_type,
+		'./log/log%s.csv'%train_type,
 		['res_train_loss', 'res_train_acc', 'res_val_loss', 'res_val_acc'] if train_type == 'Resnet' else ['deep_trian_loss', 'deep_val_loss'],
 		25
 	)
