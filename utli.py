@@ -6,14 +6,12 @@ def batch_norm(inputs, name, _global = False):
 			mean, var = tf.nn.moments(inputs, axes = [0, 1, 2])
 			offset = tf.Variable(tf.zeros(inputs.get_shape()[-1]), name = "offset")
 			scale = tf.Variable(tf.ones(inputs.get_shape()[-1]), name = "scale")
-			bn = tf.nn.batch_norm_with_global_normalization(
-				inputs, mean, var, offset, scale, tf.constant(1e-3), True, "global_batch_normalization")
 		else:
 			mean, var = tf.nn.moments(inputs, axes = [0])
 			offset = tf.Variable(tf.zeros(inputs.get_shape()[1:]), name = "offset")
 			scale = tf.Variable(tf.ones(inputs.get_shape()[1:]), name = "scale")
-			bn = tf.nn.batch_normalization(
-				inputs, mean, var, offset, scale, tf.constant(1e-3), "batch_normalization")
+		bn = tf.nn.batch_normalization(
+			inputs, mean, var, offset, scale, tf.constant(1e-3), "batch_normalization")
 		return bn
 
 def conv_layer(inputs, fsize, channel_out, name, stride = [1,1,1,1],
