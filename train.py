@@ -70,8 +70,8 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 				img, label = sess.run(pairs[0][0])
 				_, _loss, _acc = sess.run([res_op, res_mean_loss, res_acc], feed_dict={_imgs: img, _labels: label})
 				if summary.step == summary.steps - 1:
-					img_val, l_val = sess.run(pairs[0][1])
-					_valloss, _valacc = sess.run([res_mean_loss, res_acc], feed_dict={_imgs: img_val, _labels: l_val})
+					img, label = sess.run(pairs[0][1])
+					_valloss, _valacc = sess.run([res_mean_loss, res_acc], feed_dict={_imgs: img, _labels: label})
 					summary.summary(res_train_loss = _loss, res_train_acc = _acc, res_val_loss = _valloss, res_val_acc = _valacc)
 				else:
 					summary.summary(res_train_loss = _loss, res_train_acc = _acc)
@@ -93,8 +93,8 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 				img, gt = sess.run(pairs[1][0])
 				_, _loss = sess.run([deep_op, deep_mean_loss], feed_dict={_imgs: img, _gt: gt})
 				if summary.step == summary.steps - 1:
-					img_val, gt_val = sess.run(pairs[1][1])
-					_valloss = sess.run([deep_mean_loss], feed_dict={_imgs: img_val, _gt: gt_val})
+					img, gt = sess.run(pairs[1][1])
+					_valloss = sess.run([deep_mean_loss], feed_dict={_imgs: img, _gt: gt})
 					summary.summary(deep_train_loss = _loss, deep_val_loss = _valloss)
 				else:
 					summary.summary(deep_train_loss = _loss)
