@@ -16,9 +16,9 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 	res_val_dataset, deep_val_dataset, val_len = prepare_dataset(val_coco)
 
 	dataset = [[res_train_dataset, res_val_dataset], [deep_train_dataset, deep_val_dataset]]
-	iterator = map(lambda x: map(lambda y: y.make_initializable_iterator(), x), dataset)
-	pairs = map(lambda x: map(lambda y: y.get_next(), x), iterator)
-	initializer = map(lambda x: map(lambda y: y.initializer, x), iterator)
+	iterator = list(map(lambda x: list(map(lambda y: y.make_initializable_iterator(), x)), dataset))
+	pairs = list(map(lambda x: list(map(lambda y: y.get_next(), x)), iterator))
+	initializer = list(map(lambda x: list(map(lambda y: y.initializer, x)), iterator))
 
 	_imgs = tf.placeholder(tf.float32, [batch_size, None, None, 3])
 	_labels = tf.placeholder(tf.float32, [batch_size, num_classes])
