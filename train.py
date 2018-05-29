@@ -12,8 +12,8 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 
 	train_coco = COCO(train_annFile)
 	val_coco = COCO(val_annFile)
-	res_train_dataset, deep_train_dataset, train_len = prepare_dataset(train_coco)
-	res_val_dataset, deep_val_dataset, val_len = prepare_dataset(val_coco)
+	res_train_dataset, deep_train_dataset, train_len = prepare_dataset(train_coco, batch_size)
+	res_val_dataset, deep_val_dataset, val_len = prepare_dataset(val_coco, batch_size)
 
 	dataset = [[res_train_dataset, res_val_dataset], [deep_train_dataset, deep_val_dataset]]
 	iterator = list(map(lambda x: list(map(lambda y: y.make_initializable_iterator(), x)), dataset))
@@ -22,13 +22,11 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 
 	_imgs = tf.placeholder(tf.float32, [batch_size, None, None, 3])
 	_labels = tf.placeholder(tf.float32, [batch_size, num_classes])
-	_labels = tf.stop_gradient(_labels)
 	_gt = tf.placeholder(tf.float32, [batch_size, None, None, num_classes])
-	_gt = tf.stop_gradient(_gt)
 
 	_deeplab = deeplab.deeplab_v3_plus(_imgs, [128, 64], [48, num_classes], num_classes)
 	res_out = _deeplab.get_dense()
-	res_loss = tf.nn.softmax_cross_entropy_with_logits_v2(labels=_labels, logits=res_out, name='res_loss')
+	res_loss = tf.nn.softmax_cross_entropy_with_logits_v2(labels=tf.stop_gradient(_labels), logits=res_out, name='res_loss')
 	res_mean_loss = tf.reduce_mean(res_loss)
 	res_acc = tf.reduce_mean(
 		tf.cast(
@@ -42,7 +40,10 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 	res_op = tf.train.AdamOptimizer().minimize(res_loss)
 
 	pred_out = _deeplab.get_pred()
-	pred_loss = tf.nn.softmax_cross_entropy_with_logits_v2(labels=tf.reshape(_gt, [-1, num_classes]), logits=tf.reshape(pred_out, [-1, num_classes]), name='pred_loss')
+	pred_loss = tf.nn.softmax_cross_entropy_with_logits_v2(
+		labels=tf.reshape(tf.stop_gradient(_gt), [-1, num_classes]),
+		logits=tf.reshape(pred_out, [-1, num_classes]),
+		name='pred_loss')
 	pred_mean_loss = tf.reduce_mean(pred_loss)
 	pred_op = tf.train.AdamOptimizer().minimize(pred_loss)
 
@@ -66,9 +67,11 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 			cnt = 0
 			epoc = 0
 			while epoc < maxiter:
-				_, _loss, _acc = sess.run([res_op, res_mean_loss, res_acc], feed_dict={_imgs: pairs[0][0][0], _labels: pairs[0][0][1]})
+				img, label = sess.run(pairs[0][0])
+				_, _loss, _acc = sess.run([res_op, res_mean_loss, res_acc], feed_dict={_imgs: img, _labels: label})
 				if summary.step == summary.steps - 1:
-					_valloss, _valacc = sess.run([res_mean_loss, res_acc], feed_dict={_imgs: pairs[0][1][0], _labels: pairs[0][1][1]})
+					img_val, l_val = sess.run(pairs[0][1])
+					_valloss, _valacc = sess.run([res_mean_loss, res_acc], feed_dict={_imgs: img_val, _labels: l_val})
 					summary.summary(res_train_loss = _loss, res_train_acc = _acc, res_val_loss = _valloss, res_val_acc = _valacc)
 				else:
 					summary.summary(res_train_loss = _loss, res_train_acc = _acc)
@@ -87,9 +90,11 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 			cnt = 0
 			epoc = 0
 			while epoc < maxiter:
-				_, _loss = sess.run([deep_op, deep_mean_loss], feed_dict={_imgs: pairs[1][0][0], _gt: pairs[1][0][1]})
+				img, gt = sess.run(pairs[1][0])
+				_, _loss = sess.run([deep_op, deep_mean_loss], feed_dict={_imgs: img, _gt: gt})
 				if summary.step == summary.steps - 1:
-					_valloss = sess.run([deep_mean_loss], feed_dict={_imgs: pairs[1][1][0], _gt: pairs[1][1][1]})
+					img_val, gt_val = sess.run(pairs[1][1])
+					_valloss = sess.run([deep_mean_loss], feed_dict={_imgs: img_val, _gt: gt_val})
 					summary.summary(deep_train_loss = _loss, deep_val_loss = _valloss)
 				else:
 					summary.summary(deep_train_loss = _loss)
