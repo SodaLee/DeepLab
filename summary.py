@@ -9,6 +9,7 @@ class summarizer(object):
 		self.f = open(path, 'a+' if restore else 'w+')
 		self.writer = csv.DictWriter(self.f, headers)
 		self.headers = headers
+		self.step = 0
 		self.steps = steps
 		if not restore:
 			self.writer.writeheader()
