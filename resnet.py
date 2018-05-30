@@ -37,7 +37,7 @@ def resnet(x, nconvs, name):
 		conv1 = conv_layer(x, 7, 64, "conv1", stride = [1,2,2,1])
 		pool1 = tf.nn.max_pool(conv1, [1,3,3,1], [1,2,2,1], padding = "SAME", name = "pool1")
 		conv = pool1
-		depth = 64
+		depth = 32
 		for i in range(1, len(nconvs) - 2):
 			for j in range(nconvs[i]):
 				conv = residue_block(conv, depth, depth * 4, "conv%d_%d"%(i+1,j+1), half_size = (i > 1 and j == 0))

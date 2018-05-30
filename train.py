@@ -3,7 +3,7 @@ import deeplab
 import tensorflow as tf
 from PythonAPI.pycocotools.coco import COCO
 from summary import summarizer
-batch_size = 16
+batch_size = 4
 num_classes = 80
 
 def main(train_type='Resnet', restore=False, maxiter=10, test=False):
