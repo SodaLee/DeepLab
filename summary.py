@@ -6,28 +6,35 @@ class summarizer(object):
 		dirname, filename = os.path.split(path)
 		if not os.path.exists(dirname):
 			os.makedirs(dirname)
-		self.f = open(path, 'a+' if restore else 'w+')
+		exist = os.path.exists(path)
+		self.f = open(path, 'a+' if restore else 'w+', newline = '')
 		self.writer = csv.DictWriter(self.f, headers)
 		self.headers = headers
 		self.step = 0
 		self.steps = steps
-		if not restore:
+		if (not restore) or (not exist):
 			self.writer.writeheader()
 		self.buffer = []
 		self.verbose = verbose
+		self.cnt = dict.fromkeys(self.headers, 0)
 
 	def __del__(self):
 		self.flush()
 		self.f.close()
 	
 	def flush(self):
+		if len(self.buffer) == 0 or (len(self.buffer) == 1 and self.step == 0):
+			return
 		self._endline()
-		self.writer.writerows(self.buffer)
+		if self.step == 0:
+			self.writer.writerows(self.buffer[:-1])
+		else:
+			self.writer.writerows(self.buffer)
 		self.buffer = []
 
 	def _newline(self):
-		self.buffer.append(dict.fromkeys(self.headers, [0 for i in self.headers]))
-		self.cnt = dict.fromkeys(self.headers, [0 for i in self.headers])
+		self.buffer.append(dict.fromkeys(self.headers, 0))
+		self.cnt = dict.fromkeys(self.headers, 0)
 		self.step = 0
 
 	def _endline(self):
@@ -36,6 +43,9 @@ class summarizer(object):
 		for key in self.buffer[-1]:
 			if self.cnt[key] > 0:
 				self.buffer[-1][key] /= self.cnt[key]
+
+	def __call__(self, **kwargs):
+		self.summary(**kwargs)
 
 	def summary(self, **kwargs):
 		if len(self.buffer) == 0:

@@ -12,17 +12,17 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 
 	train_coco = COCO(train_annFile)
 	val_coco = COCO(val_annFile)
-	res_train_dataset, deep_train_dataset, train_len = prepare_dataset(train_coco, batch_size)
-	res_val_dataset, deep_val_dataset, val_len = prepare_dataset(val_coco, batch_size)
+	res_train_dataset, deep_train_dataset, train_len = prepare_dataset(train_coco, batch_size, [128, 128])
+	res_val_dataset, deep_val_dataset, val_len = prepare_dataset(val_coco, batch_size, [128, 128])
 
 	dataset = [[res_train_dataset, res_val_dataset], [deep_train_dataset, deep_val_dataset]]
 	iterator = list(map(lambda x: list(map(lambda y: y.make_initializable_iterator(), x)), dataset))
 	pairs = list(map(lambda x: list(map(lambda y: y.get_next(), x)), iterator))
 	initializer = list(map(lambda x: list(map(lambda y: y.initializer, x)), iterator))
 
-	_imgs = tf.placeholder(tf.float32, [batch_size, None, None, 3])
-	_labels = tf.placeholder(tf.float32, [batch_size, num_classes])
-	_gt = tf.placeholder(tf.float32, [batch_size, None, None, num_classes])
+	_imgs = tf.placeholder(tf.float32, [None, None, None, 3])
+	_labels = tf.placeholder(tf.float32, [None, num_classes])
+	_gt = tf.placeholder(tf.float32, [None, None, None, num_classes])
 
 	_deeplab = deeplab.deeplab_v3_plus(_imgs, [128, 64], [48, num_classes], num_classes)
 	res_out = _deeplab.get_dense()

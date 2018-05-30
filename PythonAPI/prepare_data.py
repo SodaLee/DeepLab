@@ -8,7 +8,7 @@ import os
 import cv2
 import json
 
-def prepare_dataset(coco, batch_size):
+def prepare_dataset(coco, batch_size, img_size = [128, 128]):
 
 	def _parse_res(imgId):
 		img = coco.imgs[imgId]
@@ -22,6 +22,7 @@ def prepare_dataset(coco, batch_size):
 		label = np.zeros(num_classes, np.float32)
 		for ann in anns:
 			label[cat_dict['id2c'][str(ann['category_id'])]] = 1
+		label /= np.sum(label, axis = -1, keepdims = True)
 
 		return img_decoded.astype(np.float32), label
 
@@ -38,20 +39,21 @@ def prepare_dataset(coco, batch_size):
 		for ann in anns:
 			mask = coco.annToMask(ann)
 			masks[cat_dict['id2c'][str(ann['category_id'])]] += mask
+		masks /= np.sum(masks, axis = 0, keepdims = True)
 
 		return img_decoded.astype(np.float32), masks.transpose(1, 2, 0).astype(np.float32)
 
 	def _resize_res(img, label):
 		img.set_shape([None, None, 3])
-		img = tf.image.resize_images(img, [512, 512])
+		img = tf.image.resize_images(img, img_size)
 		label.set_shape([num_classes])
 		return img, label
 
 	def _resize_deep(img, masks):
 		img.set_shape([None, None, 3])
-		img = tf.image.resize_images(img, [512, 512])
+		img = tf.image.resize_images(img, img_size)
 		masks.set_shape([None, None, num_classes])
-		masks = tf.image.resize_images(masks, [512, 512])
+		masks = tf.image.resize_images(masks, img_size)
 		return img, masks
 
 	imgDir = 'data/imgs'

@@ -1,12 +1,13 @@
 import deeplab
 import tensorflow as tf
+from summary import summarizer
 batch_size = 16
 num_classes = 80
 
 def main(train_type='Resnet', restore=False, maxiter=10, test=False):
-	_imgs = tf.placeholder(tf.float32, [batch_size, None, None, 3])
-	_labels = tf.placeholder(tf.float32, [batch_size, num_classes])
-	_gt = tf.placeholder(tf.float32, [batch_size, None, None, num_classes])
+	_imgs = tf.placeholder(tf.float32, [None, None, None, 3])
+	_labels = tf.placeholder(tf.float32, [None, num_classes])
+	_gt = tf.placeholder(tf.float32, [None, None, None, num_classes])
 
 	_deeplab = deeplab.deeplab_v3_plus(_imgs, [128, 64], [48, num_classes], num_classes)
 	res_out = _deeplab.get_dense()
@@ -30,8 +31,13 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 		name='pred_loss')
 	pred_mean_loss = tf.reduce_mean(pred_loss)
 	pred_op = tf.train.AdamOptimizer().minimize(pred_loss)
-
+	summary = summarizer('./dummy.csv', ['a', 'b', 'c'], 10)
 	with tf.Session() as sess:
 		sess.run(tf.global_variables_initializer())
+		for i in range(100):
+			if i % 2 == 0:
+				summary(a = 1, b = 1)
+			else:
+				summary.summary(a = 1)
 
 main()
