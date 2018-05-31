@@ -24,7 +24,7 @@ def prepare_dataset(coco, batch_size, img_size = [128, 128]):
 			label[cat_dict['id2c'][str(ann['category_id'])]] = 1
 		label_sum = np.sum(label)
 		if label_sum > 0:
-			label /= np.sum(label, axis = -1, keepdims = True)
+			label /= label_sum
 		else:
 			label[num_classes-1] = 1
 
@@ -43,7 +43,16 @@ def prepare_dataset(coco, batch_size, img_size = [128, 128]):
 		for ann in anns:
 			mask = coco.annToMask(ann)
 			masks[cat_dict['id2c'][str(ann['category_id'])]] += mask
-		masks /= np.sum(masks, axis = 0, keepdims = True)
+		masks_sum /= np.sum(masks, axis = 0, keepdims = True)
+		masks = np.where(
+			masks_sum > 0,
+			masks / masks_sum,
+			np.concatenate([
+				np.zeros([num_classes - 1, img_decoded.shape[0], img_decoded.shape[1]]),
+				np.ones([1, img_decoded.shape[0], img_decoded.shape[1]])
+				],
+				axis = 0)
+		)
 
 		return img_decoded.astype(np.float32), masks.transpose(1, 2, 0).astype(np.float32)
 

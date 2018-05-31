@@ -27,9 +27,11 @@ class summarizer(object):
 			return
 		self._endline()
 		if self.step == 0:
-			self.writer.writerows(self.buffer[:-1])
+			for row in self.buffer[:-1]:
+				self.writer.writerow(row)
 		else:
-			self.writer.writerows(self.buffer)
+			for row in self.buffer:
+				self.writer.writerow(row)
 		self.buffer = []
 
 	def _newline(self):
