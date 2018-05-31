@@ -28,7 +28,7 @@ def prepare_dataset(coco, batch_size, img_size = [128, 128]):
 		else:
 			label[num_classes-1] = 1
 
-		return img_decoded.astype(np.float32), label
+		return img_decoded.astype(np.float32) / 255, label
 
 	def _parse_deep(imgId):
 		img = coco.imgs[imgId]
@@ -43,7 +43,7 @@ def prepare_dataset(coco, batch_size, img_size = [128, 128]):
 		for ann in anns:
 			mask = coco.annToMask(ann)
 			masks[cat_dict['id2c'][str(ann['category_id'])]] += mask
-		masks_sum /= np.sum(masks, axis = 0, keepdims = True)
+		masks_sum = np.sum(masks, axis = 0, keepdims = True)
 		masks = np.where(
 			masks_sum > 0,
 			masks / masks_sum,
@@ -54,7 +54,7 @@ def prepare_dataset(coco, batch_size, img_size = [128, 128]):
 				axis = 0)
 		)
 
-		return img_decoded.astype(np.float32), masks.transpose(1, 2, 0).astype(np.float32)
+		return img_decoded.astype(np.float32) / 255, masks.transpose(1, 2, 0).astype(np.float32)
 
 	def _resize_res(img, label):
 		img.set_shape([None, None, 3])

@@ -78,12 +78,12 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 				cnt += batch_size
 				if cnt >= train_len:
 					epoc += 1
-					print('epoc %d done' % (epoc + 1))
+					print('epoc %d done' % epoc)
 					cnt -= train_len
 
-			saver.save(sess, "./model/model.ckpt")
-			#saver.save(sess, "./model/model_res_%d.ckpt" % i)
-			print('model saved')
+					saver.save(sess, "./model/model.ckpt")
+					#saver.save(sess, "./model/model_res_%d.ckpt" % i)
+					print('model saved')
 
 		elif train_type == 'Deeplab':
 			sess.run(initializer[1])
@@ -101,14 +101,14 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 				cnt += batch_size
 				if cnt >= train_len:
 					epoc += 1
-					print('epoc %d done' % (epoc + 1))
+					print('epoc %d done' % epoc)
 					cnt -= train_len
 
-			saver.save(sess, "./model/model.ckpt")
-			#saver.save(sess, "./model/model_deep_%d.ckpt" % i)
-			print('model saved')
+					saver.save(sess, "./model/model.ckpt")
+					#saver.save(sess, "./model/model_deep_%d.ckpt" % i)
+					print('model saved')
 		else:
-			pass
+			assert False, "unknown training type"
 
 if __name__ == '__main__':
 	main('Resnet')
