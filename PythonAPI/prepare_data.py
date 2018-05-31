@@ -19,16 +19,19 @@ def prepare_dataset(coco, batch_size, img_size = [128, 128]):
 
 		annLists = [coco.imgToAnns[imgId]]
 		anns = list(itertools.chain.from_iterable(annLists))
-		label = np.zeros(num_classes, np.float32)
+		masks = np.zeros([num_classes, img_decoded.shape[0], img_decoded.shape[1]])
+
 		for ann in anns:
-			label[cat_dict['id2c'][str(ann['category_id'])]] = 1
+			mask = coco.annToMask(ann)
+			masks[cat_dict['id2c'][str(ann['category_id'])]] += mask
+		label = np.sum(masks, axis = (1, 2))
 		label_sum = np.sum(label)
 		if label_sum > 0:
-			label /= label_sum
+			label = label / label_sum
 		else:
-			label[num_classes-1] = 1
+			label[-1] = 1
 
-		return img_decoded.astype(np.float32) / 255, label
+		return img_decoded.astype(np.float32) / 255, label.astype(np.float32)
 
 	def _parse_deep(imgId):
 		img = coco.imgs[imgId]
@@ -55,7 +58,7 @@ def prepare_dataset(coco, batch_size, img_size = [128, 128]):
 		)
 
 		return img_decoded.astype(np.float32) / 255, masks.transpose(1, 2, 0).astype(np.float32)
-
+	
 	def _resize_res(img, label):
 		img.set_shape([None, None, 3])
 		img = tf.image.resize_images(img, img_size)
@@ -77,13 +80,13 @@ def prepare_dataset(coco, batch_size, img_size = [128, 128]):
 	num_classes = 81
 
 	dataset = tf.data.Dataset.from_tensor_slices(imgIds)
-
-	res_dataset = dataset.map(lambda imgId: tf.py_func(_parse_res, [imgId], [tf.float32, tf.float32], name='parse_res'))
-	res_dataset = res_dataset.map(_resize_res)
-	res_dataset = res_dataset.batch(batch_size).repeat()
 	
 	deep_dataset = dataset.map(lambda imgId: tf.py_func(_parse_deep, [imgId], [tf.float32, tf.float32], name='parse_deep'))
 	deep_dataset = deep_dataset.map(_resize_deep)
 	deep_dataset = deep_dataset.batch(batch_size).repeat()
+
+	res_dataset = dataset.map(lambda imgId: tf.py_func(_parse_res, [imgId], [tf.float32, tf.float32], name='parse_res'))
+	res_dataset = res_dataset.map(_resize_res)
+	res_dataset = res_dataset.batch(batch_size).repeat()
 
 	return res_dataset, deep_dataset, len(imgIds)

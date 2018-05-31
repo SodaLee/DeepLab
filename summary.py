@@ -63,4 +63,6 @@ class summarizer(object):
 			if self.verbose:
 				print(self.buffer[-1])
 			self._newline()
+			if len(self.buffer) > 20:
+				self.flush()
 		

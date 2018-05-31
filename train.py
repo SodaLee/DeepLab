@@ -3,8 +3,10 @@ import deeplab
 import tensorflow as tf
 from PythonAPI.pycocotools.coco import COCO
 from summary import summarizer
-batch_size = 4
+import os
+batch_size = 16
 num_classes = 81
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 	train_annFile = './annotations/instances_train2017.json'
@@ -12,8 +14,8 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 
 	train_coco = COCO(train_annFile)
 	val_coco = COCO(val_annFile)
-	res_train_dataset, deep_train_dataset, train_len = prepare_dataset(train_coco, batch_size, [128, 128])
-	res_val_dataset, deep_val_dataset, val_len = prepare_dataset(val_coco, batch_size, [128, 128])
+	res_train_dataset, deep_train_dataset, train_len = prepare_dataset(train_coco, batch_size, [224, 224])
+	res_val_dataset, deep_val_dataset, val_len = prepare_dataset(val_coco, batch_size, [224, 224])
 
 	dataset = [[res_train_dataset, res_val_dataset], [deep_train_dataset, deep_val_dataset]]
 	iterator = list(map(lambda x: list(map(lambda y: y.make_initializable_iterator(), x)), dataset))
@@ -28,16 +30,7 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 	res_out = _deeplab.get_dense()
 	res_loss = tf.nn.softmax_cross_entropy_with_logits_v2(labels=tf.stop_gradient(_labels), logits=res_out, name='res_loss')
 	res_mean_loss = tf.reduce_mean(res_loss)
-	res_acc = tf.reduce_mean(
-		tf.cast(
-			tf.equal(
-				tf.argmax(res_out, axis = -1),
-				tf.argmax(_labels, axis = -1)
-			),
-			tf.float32
-		)
-	)
-	res_op = tf.train.AdamOptimizer().minimize(res_loss)
+	res_op = tf.train.AdamOptimizer(learning_rate = 1e-4).minimize(res_loss)
 
 	pred_out = _deeplab.get_pred()
 	pred_loss = tf.nn.softmax_cross_entropy_with_logits_v2(
@@ -45,16 +38,19 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 		logits=tf.reshape(pred_out, [-1, num_classes]),
 		name='pred_loss')
 	pred_mean_loss = tf.reduce_mean(pred_loss)
-	pred_op = tf.train.AdamOptimizer().minimize(pred_loss)
+	pred_op = tf.train.AdamOptimizer(learning_rate = 1e-4).minimize(pred_loss)
 
 	saver = tf.train.Saver()
 	summary = summarizer(
 		'./log/log%s.csv'%train_type,
-		['res_train_loss', 'res_train_acc', 'res_val_loss', 'res_val_acc'] if train_type == 'Resnet' else ['deep_trian_loss', 'deep_val_loss'],
-		25
+		['res_train_loss', 'res_val_loss'] if train_type == 'Resnet' else ['deep_trian_loss', 'deep_val_loss'],
+		25, restore = restore
 	)
+	config = tf.ConfigProto()
+	config.gpu_options.per_process_gpu_memory_fraction = 0.7
+	config.gpu_options.allow_growth = True
 
-	with tf.Session() as sess:
+	with tf.Session(config = config) as sess:
 		if restore:
 			saver.restore(sess, "./model/model.ckpt")
 			print('restored')
@@ -68,14 +64,15 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 			epoc = 0
 			while epoc < maxiter:
 				img, label = sess.run(pairs[0][0])
-				_, _loss, _acc = sess.run([res_op, res_mean_loss, res_acc], feed_dict={_imgs: img, _labels: label})
-				if summary.step == summary.steps - 1:
-					img, label = sess.run(pairs[0][1])
-					_valloss, _valacc = sess.run([res_mean_loss, res_acc], feed_dict={_imgs: img, _labels: label})
-					summary.summary(res_train_loss = _loss, res_train_acc = _acc, res_val_loss = _valloss, res_val_acc = _valacc)
-				else:
-					summary.summary(res_train_loss = _loss, res_train_acc = _acc)
+				_, _loss = sess.run([res_op, res_mean_loss], feed_dict={_imgs: img, _labels: label})
 				cnt += batch_size
+				if summary.step == summary.steps - 1:
+					print("%d/%d %f"%(cnt, train_len, cnt / train_len))
+					img, label = sess.run(pairs[0][1])
+					_valloss = sess.run(res_mean_loss, feed_dict={_imgs: img, _labels: label})
+					summary.summary(res_train_loss = _loss, res_val_loss = _valloss)
+				else:
+					summary.summary(res_train_loss = _loss)
 				if cnt >= train_len:
 					epoc += 1
 					print('epoc %d done' % epoc)
@@ -92,13 +89,14 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 			while epoc < maxiter:
 				img, gt = sess.run(pairs[1][0])
 				_, _loss = sess.run([deep_op, deep_mean_loss], feed_dict={_imgs: img, _gt: gt})
+				cnt += batch_size
 				if summary.step == summary.steps - 1:
+					print("%d/%d %f"%(cnt, train_len, cnt / train_len))
 					img, gt = sess.run(pairs[1][1])
-					_valloss = sess.run([deep_mean_loss], feed_dict={_imgs: img, _gt: gt})
+					_valloss = sess.run(deep_mean_loss, feed_dict={_imgs: img, _gt: gt})
 					summary.summary(deep_train_loss = _loss, deep_val_loss = _valloss)
 				else:
 					summary.summary(deep_train_loss = _loss)
-				cnt += batch_size
 				if cnt >= train_len:
 					epoc += 1
 					print('epoc %d done' % epoc)
@@ -111,4 +109,4 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 			assert False, "unknown training type"
 
 if __name__ == '__main__':
-	main('Resnet')
+	main('Resnet', restore = True)
