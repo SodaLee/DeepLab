@@ -22,7 +22,11 @@ def prepare_dataset(coco, batch_size, img_size = [128, 128]):
 		label = np.zeros(num_classes, np.float32)
 		for ann in anns:
 			label[cat_dict['id2c'][str(ann['category_id'])]] = 1
-		label /= np.sum(label, axis = -1, keepdims = True)
+		label_sum = np.sum(label)
+		if label_sum > 0:
+			label /= np.sum(label, axis = -1, keepdims = True)
+		else:
+			label[num_classes-1] = 1
 
 		return img_decoded.astype(np.float32), label
 
@@ -61,7 +65,7 @@ def prepare_dataset(coco, batch_size, img_size = [128, 128]):
 	imgIds = coco.getImgIds()
 	with open('PythonAPI/cat_dict.json', 'r') as f:
 		cat_dict = json.load(f)
-	num_classes = 80
+	num_classes = 81
 
 	dataset = tf.data.Dataset.from_tensor_slices(imgIds)
 

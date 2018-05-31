@@ -4,7 +4,7 @@ import tensorflow as tf
 from PythonAPI.pycocotools.coco import COCO
 from summary import summarizer
 batch_size = 4
-num_classes = 80
+num_classes = 81
 
 def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 	train_annFile = './annotations/instances_train2017.json'
@@ -82,7 +82,7 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 					cnt -= train_len
 
 			saver.save(sess, "./model/model.ckpt")
-			saver.save(sess, "./model/model_res_%d.ckpt" % i)
+			#saver.save(sess, "./model/model_res_%d.ckpt" % i)
 			print('model saved')
 
 		elif train_type == 'Deeplab':
@@ -105,7 +105,7 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 					cnt -= train_len
 
 			saver.save(sess, "./model/model.ckpt")
-			saver.save(sess, "./model/model_deep_%d.ckpt" % i)
+			#saver.save(sess, "./model/model_deep_%d.ckpt" % i)
 			print('model saved')
 		else:
 			pass
