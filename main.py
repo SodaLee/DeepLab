@@ -4,9 +4,10 @@ import tensorflow as tf
 from PythonAPI.pycocotools.coco import COCO
 from summary import summarizer
 import os
+import argparse
 batch_size = 16
 num_classes = 81
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+log_dir = "./log"
 
 def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 	train_annFile = './annotations/instances_train2017.json'
@@ -42,7 +43,7 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 
 	saver = tf.train.Saver()
 	summary = summarizer(
-		'./log/log%s.csv'%train_type,
+		os.path.join(log_dir, 'log%s.csv'%train_type),
 		['res_train_loss', 'res_val_loss'] if train_type == 'Resnet' else ['deep_trian_loss', 'deep_val_loss'],
 		25, restore = restore
 	)
@@ -109,4 +110,18 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 			assert False, "unknown training type"
 
 if __name__ == '__main__':
-	main('Resnet', restore = True)
+	parser = argparse.ArgumentParser()
+	parser.add_argument("-g", "--gpu", help = "specify which gpu to use", default = "0")
+	parser.add_argument("-t", "--type",
+		help = "specify the type of training",
+		choices = ["Resnet", "Deep"],
+		default = "Resnet")
+	parser.add_argument("-l", "--log", help = "directory name of log files", default = "./log")
+	parser.add_argument("-r", "--restore", help = "restore from checkpoint", action = "store_true")
+	parser.add_argument("-i", "--maxiter", help = "maximum epoc", type = int, default = 10)
+
+	args = parser.parse_args()
+
+	os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
+	log_dir = args.log
+	main(args.type, restore = args.restore, maxiter = args.maxiter, test = False)
