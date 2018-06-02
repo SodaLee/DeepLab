@@ -37,7 +37,7 @@ def draw_curve(path, figpath, keys = None, xlabel = 'x', ylabel = 'y', title = N
 	plt.savefig(figpath)
 	plt.close("all")
 
-def draw_image(img, figpath, keys = None, legend_loc = 'lower center'):
+def draw_image(img, figpath, keys = None):
 	assert len(img.shape) == 3, "unsupported image shape %s"%(img.shape)
 	if not os.path.exists(os.path.split(figpath)[0]):
 		os.makedirs(os.path.split(figpath)[0])
@@ -45,25 +45,39 @@ def draw_image(img, figpath, keys = None, legend_loc = 'lower center'):
 	cuber = int(math.ceil(math.pow(nclass, 1.0 / 3)))
 	sqrcuber = cuber * cuber
 	colors = np.empty([nclass, 3], dtype = np.float32)
+	stride1 = 1. / ((nclass - 1) // sqrcuber)
+	stride2 = 1. / ((sqrcuber - 1) // cuber)
+	stride3 = 1. / (cuber - 1)
 	for i in range(nclass):
-		r = int(i / sqrcuber)
-		g = int((i % sqrcuber) / cuber)
+		r = i // sqrcuber
+		g = (i % sqrcuber) // cuber
 		b = (i % sqrcuber) % cuber
-		colors[i] = cuber - 1 - np.array([r, g, b], dtype = np.float32)
-	colors /= np.amax(colors)
+		colors[i] = np.array([r * stride1, g * stride2, b * stride3], dtype = np.float32)
+	colors = 1. - colors
+	colors[-1] = [0, 0, 0]
 
 	img_hotkey = np.reshape(np.argmax(img, axis = -1), [-1])
 	img_onehot = np.reshape(np.eye(nclass)[img_hotkey], img.shape)
 	res = np.matmul(img_onehot, colors)
 
-	fig = plt.figure()
-	axes = fig.add_axes([0.1, 0.1, 0.9, 0.9])
+	fig = plt.figure(dpi = 160)
+	if img.shape[0] > img.shape[1]:
+		h = 0.9 - nclass // 20 * 0.1
+		w = h / img.shape[0] * img.shape[1]
+		axes = fig.add_axes([0.1, 0.1, w, h])
+	else:
+		w = 0.9 - (nclass + 7) // 8 * 0.033
+		h = w / img.shape[1] * img.shape[0]
+		axes = fig.add_axes([0.1, 0.9 - h, w, h])
 	axes.imshow(res)
 	if keys is not None:
 		patches = []
 		for i in range(nclass):
 			patches.append(mpatches.Patch(color=colors[i], label=keys[i]))
-		axes.legend(handles=patches, loc = legend_loc)
+		if img.shape[0] > img.shape[1]:
+			axes.legend(handles = patches, loc = "center right", bbox_to_anchor=(1.2, 0.5), ncol = nclass // 20)
+		else:
+			axes.legend(handles = patches, loc = "lower center", bbox_to_anchor=(0.5, -0.4), ncol = 8)
 	plt.draw()
 	plt.savefig(figpath)
 	plt.close("all")
