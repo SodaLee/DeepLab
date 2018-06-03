@@ -68,6 +68,7 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 
 	with tf.Session(config = config) as sess:
 		if restore:
+			sess.run(tf.global_variables_initializer())
 			restorer.restore(sess, model_path)
 			print('restored')
 		else:

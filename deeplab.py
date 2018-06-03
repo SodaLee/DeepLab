@@ -22,17 +22,8 @@ class deeplab_v3_plus(object):
 			fshape = [scale+1, scale+1, channel, channel]
 			fshape = tf.TensorShape(fshape)
 			f = tf.Variable(tf.truncated_normal(fshape, stddev = 0.1), "filter")
-			h, w, c = inputs.get_shape().as_list()[1:]
-			if h is not None:
-				h *= scale
-			if w is not None:
-				w *= scale
-			outshape = [
-					-1,
-					h if h is not None else -1,
-					w if w is not None else -1,
-					c if c is not None else -1
-				]
+			b, h, w, c = tf.unstack(tf.shape(inputs))
+			outshape = tf.stack([b, h * 2, w * 2, channel])
 			deconv = tf.nn.conv2d_transpose(inputs, f, outshape, [1,scale,scale,1], padding = "SAME", name = "deconvolution")
 			return deconv
 
