@@ -46,7 +46,10 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 	pred_mean_loss = tf.reduce_mean(pred_loss)
 	pred_op = tf.train.AdamOptimizer(learning_rate = 1e-4).minimize(pred_loss, global_step = deep_step)
 
-	ckpt = tf.train.get_checkpoint_state(model_path)
+	if os.path.isdir(model_path):
+		ckpt = tf.train.get_checkpoint_state(model_path)
+	else:
+		ckpt = tf.train.get_checkpoint_state(os.path.split(model_path)[0], os.path.split(model_path)[1])
 	reader = pywrap_tensorflow.NewCheckpointReader(ckpt.model_checkpoint_path)
 	var_to_shape_map = reader.get_variable_to_shape_map()
 	ckpt_var_list = var_to_shape_map.values()
