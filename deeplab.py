@@ -23,7 +23,7 @@ class deeplab_v3_plus(object):
 			fshape = tf.TensorShape(fshape)
 			f = tf.Variable(tf.truncated_normal(fshape, stddev = 0.1), "filter")
 			b, h, w, c = tf.unstack(tf.shape(inputs))
-			outshape = tf.stack([b, h * 2, w * 2, channel])
+			outshape = tf.stack([b, h * scale, w * scale, channel])
 			deconv = tf.nn.conv2d_transpose(inputs, f, outshape, [1,scale,scale,1], padding = "SAME", name = "deconvolution")
 			return deconv
 
@@ -46,7 +46,7 @@ class deeplab_v3_plus(object):
 			conv = tf.concat([conv1, self._upsample(aspp, 2, "upsample1")], -1)
 			for i, c in enumerate(channels, 1):
 				conv = conv_layer(conv, 3, c, "conv%d"%(i+1))
-			conv = self._upsample(conv, 2, "upsample2")
+			conv = self._upsample(conv, 4, "upsample2")
 			return conv
 
 	def get_pred(self):

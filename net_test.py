@@ -1,6 +1,7 @@
 import deeplab
 import tensorflow as tf
 from summary import summarizer
+import numpy as np
 batch_size = 16
 num_classes = 80
 
@@ -33,5 +34,6 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 				summary(a = 1, b = 0.5 + (i * 0.16) - int(0.5 + (i * 0.16)))
 			else:
 				summary.summary(a = 1)
+		sess.run(pred_op, feed_dict = {_imgs: np.random.rand(1,64,128,3), _gt: np.random.rand(1,64,128,80)})
 
 main()
