@@ -46,16 +46,15 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 	pred_mean_loss = tf.reduce_mean(pred_loss)
 	pred_op = tf.train.AdamOptimizer(learning_rate = 1e-4).minimize(pred_loss, global_step = deep_step)
 
-	if os.path.isdir(model_path):
-		ckpt = tf.train.get_checkpoint_state(model_path)
-	else:
-		ckpt = tf.train.get_checkpoint_state(os.path.split(model_path)[0], os.path.split(model_path)[1])
-	reader = pywrap_tensorflow.NewCheckpointReader(ckpt.model_checkpoint_path)
-	var_to_shape_map = reader.get_variable_to_shape_map()
-	ckpt_var_list = var_to_shape_map.values()
+	reader = pywrap_tensorflow.NewCheckpointReader(model_path)
+	restore_dict = dict()
+	for v in tf.get_collection(tf.GraphKeys.VARIABLES):
+		tname = v.name.split(':')[0]
+		if reader.has_tensor(tname):
+			restore_dict[tname] = v
 
 	saver = tf.train.Saver()
-	restorer = tf.train.Saver(ckpt_var_list)
+	restorer = tf.train.Saver(restore_dict)
 
 	summary = summarizer(
 		os.path.join(log_dir, 'log%s.csv'%train_type),
@@ -98,18 +97,18 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 					saver.save(sess, model_path)
 					print('model saved')
 
-		elif train_type == 'Deeplab':
+		elif train_type == 'Deep':
 			sess.run(initializer[1])
 			cnt = 0
 			epoc = 0
 			while epoc < maxiter:
 				img, gt = sess.run(pairs[1][0])
-				_, _loss = sess.run([deep_op, deep_mean_loss], feed_dict={_imgs: img, _gt: gt})
+				_, _loss = sess.run([pred_op, pred_mean_loss], feed_dict={_imgs: img, _gt: gt})
 				cnt += batch_size
 				if summary.step == summary.steps - 1:
 					print("%d/%d %f"%(cnt, train_len, cnt / train_len))
 					img, gt = sess.run(pairs[1][1])
-					_valloss = sess.run(deep_mean_loss, feed_dict={_imgs: img, _gt: gt})
+					_valloss = sess.run(pred_mean_loss, feed_dict={_imgs: img, _gt: gt})
 					summary.summary(deep_train_loss = _loss, deep_val_loss = _valloss, step = sess.run(deep_step))
 				else:
 					summary.summary(deep_train_loss = _loss, step = sess.run(deep_step))
@@ -121,7 +120,7 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 					saver.save(sess, model_path)
 					print('model saved')
 		else:
-			assert False, "unknown training type"
+			assert False, "unknown training type %s" % train_type
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
