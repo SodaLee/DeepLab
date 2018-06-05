@@ -4,6 +4,7 @@ import tensorflow as tf
 from tensorflow.python import pywrap_tensorflow
 from PythonAPI.pycocotools.coco import COCO
 from summary import summarizer
+from plot import draw_image
 import os
 import argparse
 batch_size = 16
@@ -75,6 +76,20 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 			sess.run(tf.global_variables_initializer())
 			print('initial done')
 
+		if test:
+			sess.run(initializer[1])
+			cnt = 0
+			pic_cnt = 0
+			while cnt < maxiter:
+				img, gt = sess.run(pairs[1][0])
+				pred = sess.run(pred_out, feed_dict={_img: img, _gt: gt})
+				for raw_img, pred_img in enumerate(img, pred):
+					draw_image(raw_img, './data/pred/img%d_raw.jpg' % pic_cnt)
+					draw_image(pred_img, './data/pred/img%d_pred.jpg' % pic_cnt)
+					pic_cnt += 1
+				cnt += 1
+			return
+
 		if train_type == 'Resnet':
 			sess.run(initializer[0])
 			cnt = 0
@@ -134,10 +149,11 @@ if __name__ == '__main__':
 	parser.add_argument("-r", "--restore", help = "restore from checkpoint", action = "store_true")
 	parser.add_argument("-i", "--maxiter", help = "maximum epoc", type = int, default = 10)
 	parser.add_argument("-c", "--checkpoint", help = "checkpoint path", default = "./model/model.ckpt")
+	parser.add_argument("-t", "--test", help = "test deeplab", action='store_true', default = False)
 
 	args = parser.parse_args()
 
 	os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
 	log_dir = args.log
 	model_path = args.checkpoint
-	main(args.type, restore = args.restore, maxiter = args.maxiter, test = False)
+	main(args.type, restore = args.restore, maxiter = args.maxiter, test = args.test)
