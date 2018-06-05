@@ -59,7 +59,7 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 
 	summary = summarizer(
 		os.path.join(log_dir, 'log%s.csv'%train_type),
-		['step', 'res_train_loss', 'res_val_loss'] if train_type == 'Resnet' else ['step', 'deep_trian_loss', 'deep_val_loss'],
+		['step', 'res_train_loss', 'res_val_loss'] if train_type == 'Resnet' else ['step', 'deep_train_loss', 'deep_val_loss'],
 		25, restore = restore
 	)
 
@@ -104,7 +104,7 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 					_valloss = sess.run(res_mean_loss, feed_dict={_imgs: img, _labels: label})
 					summary.summary(res_train_loss = _loss, res_val_loss = _valloss, step = sess.run(resnet_step))
 				else:
-					summary.summary(res_train_loss = _loss, step = sess.run(resnet_step))
+					summary.summary(res_train_loss = _loss)
 				if cnt >= train_len:
 					epoc += 1
 					print('epoc %d done' % epoc)
@@ -127,7 +127,7 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 					_valloss = sess.run(pred_mean_loss, feed_dict={_imgs: img, _gt: gt})
 					summary.summary(deep_train_loss = _loss, deep_val_loss = _valloss, step = sess.run(deep_step))
 				else:
-					summary.summary(deep_train_loss = _loss, step = sess.run(deep_step))
+					summary.summary(deep_train_loss = _loss)
 				if cnt >= train_len:
 					epoc += 1
 					print('epoc %d done' % epoc)

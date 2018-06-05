@@ -44,10 +44,10 @@ class deeplab_v3_plus(object):
 		with tf.name_scope(name):
 			conv1 = conv_layer(llf, 1, channels[0], "conv1")
 			conv = tf.concat([conv1, self._upsample(aspp, 2, "upsample1")], -1)
-			conv = self._upsample(conv, 2, "upsample2")
+			conv = self._upsample(conv, 2, "upsample3")
 			for i, c in enumerate(channels, 1):
 				conv = conv_layer(conv, 3, c, "conv%d"%(i+1))
-			conv = self._upsample(conv, 2, "upsample3")
+			conv = self._upsample(conv, 2, "upsample2")
 			return conv
 
 	def get_pred(self):
