@@ -69,7 +69,9 @@ def draw_image(img, figpath, keys = None):
 	res = np.matmul(img_onehot, colors)
 
 	fig = plt.figure(dpi = 160)
-	if img.shape[0] > img.shape[1]:
+	if keys is None:
+		axes = fig.add_axes([0.1, 0.1, 0.9, 0.9])
+	elif img.shape[0] > img.shape[1]:
 		h = 0.9 - nclass // 20 * 0.1
 		w = h / img.shape[0] * img.shape[1]
 		axes = fig.add_axes([0.1, 0.1, w, h])
