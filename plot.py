@@ -37,6 +37,14 @@ def draw_curve(path, figpath, keys = None, xlabel = 'x', ylabel = 'y', title = N
 	plt.savefig(figpath)
 	plt.close("all")
 
+def draw_raw_image(raw_image, figpath):
+	fig = plt.figure(dpi = 160)
+	axes = fig.add_axes([0.1, 0.1, 0.9, 0.9])
+	axes.imshow(raw_image)
+	plt.draw()
+	plt.savefig(figpath)
+	plt.close("all")
+
 def draw_image(img, figpath, keys = None):
 	assert len(img.shape) == 3, "unsupported image shape %s"%(img.shape)
 	if not os.path.exists(os.path.split(figpath)[0]):
