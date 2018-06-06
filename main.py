@@ -1,3 +1,4 @@
+import plot
 from PythonAPI.prepare_data import prepare_dataset
 import deeplab
 import tensorflow as tf
@@ -75,6 +76,16 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 			sess.run(tf.global_variables_initializer())
 			print('initial done')
 
+		if test:
+			sess.run(initializer[1])
+			img, gt = sess.run(pairs[1][0])
+			pred = sess.run(pred_out, feed_dict = {_img: img})
+			for i in range(img.shape[0]):
+				plot.draw_raw_image(img[i], "./test/img_%d_raw.jpg"%i)
+				plot.draw_image(pred[i], "./test/img_%d_pred.jpg"%i)
+			return
+
+
 		if train_type == 'Resnet':
 			sess.run(initializer[0])
 			cnt = 0
@@ -127,17 +138,18 @@ if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
 	parser.add_argument("-g", "--gpu", help = "specify which gpu to use", default = "0")
 	parser.add_argument("-t", "--type",
-		help = "specify the type of training",
+		help = "specify the type of training/test",
 		choices = ["Resnet", "Deep"],
 		default = "Resnet")
 	parser.add_argument("-l", "--log", help = "directory name of log files", default = "./log")
 	parser.add_argument("-r", "--restore", help = "restore from checkpoint", action = "store_true")
 	parser.add_argument("-i", "--maxiter", help = "maximum epoc", type = int, default = 10)
 	parser.add_argument("-c", "--checkpoint", help = "checkpoint path", default = "./model/model.ckpt")
+	parser.add_argument("--test", help = "test deeplab", action = "store_true")
 
 	args = parser.parse_args()
 
 	os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
 	log_dir = args.log
 	model_path = args.checkpoint
-	main(args.type, restore = args.restore, maxiter = args.maxiter)
+	main(args.type, restore = args.restore, maxiter = args.maxiter, test = args.test)
