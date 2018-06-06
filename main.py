@@ -42,8 +42,8 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 	pred_out = _deeplab.get_pred()
 	pred_softmax = tf.nn.softmax(pred_out)
 	pred_loss = tf.nn.softmax_cross_entropy_with_logits_v2(
-		labels=tf.reshape(tf.stop_gradient(_gt), [-1, num_classes]),
-		logits=tf.reshape(pred_out, [-1, num_classes]),
+		labels=tf.stop_gradient(_gt),
+		logits=pred_out,
 		name='pred_loss')
 	pred_mean_loss = tf.reduce_mean(pred_loss)
 	pred_op = tf.train.AdamOptimizer(learning_rate = 1e-4).minimize(pred_loss, global_step = deep_step)
