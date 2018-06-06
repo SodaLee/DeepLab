@@ -40,6 +40,7 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 	res_op = tf.train.AdamOptimizer(learning_rate = 1e-4).minimize(res_loss, global_step = resnet_step)
 
 	pred_out = _deeplab.get_pred()
+	pred_softmax = tf.nn.softmax(pred_out)
 	pred_loss = tf.nn.softmax_cross_entropy_with_logits_v2(
 		labels=tf.reshape(tf.stop_gradient(_gt), [-1, num_classes]),
 		logits=tf.reshape(pred_out, [-1, num_classes]),
@@ -79,7 +80,7 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 		if test:
 			sess.run(initializer[1])
 			img, gt = sess.run(pairs[1][0])
-			pred = sess.run(pred_out, feed_dict = {_imgs: img})
+			pred = sess.run(pred_softmax, feed_dict = {_imgs: img})
 			for i in range(img.shape[0]):
 				plot.draw_raw_image(img[i][:,:,::-1], "./test/img_%d_raw.jpg"%i)
 				plot.draw_image(pred[i], "./test/img_%d_pred.jpg"%i)

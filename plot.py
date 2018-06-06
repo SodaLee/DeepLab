@@ -45,7 +45,7 @@ def draw_raw_image(raw_image, figpath):
 	plt.savefig(figpath)
 	plt.close("all")
 
-def draw_image(img, figpath, keys = None):
+def draw_image(img, figpath, keys = None, soft = False):
 	assert len(img.shape) == 3, "unsupported image shape %s"%(img.shape)
 	if not os.path.exists(os.path.split(figpath)[0]):
 		os.makedirs(os.path.split(figpath)[0])
@@ -64,9 +64,12 @@ def draw_image(img, figpath, keys = None):
 	colors = 1. - colors
 	colors[-1] = [0, 0, 0]
 
-	img_hotkey = np.reshape(np.argmax(img, axis = -1), [-1])
-	img_onehot = np.reshape(np.eye(nclass)[img_hotkey], img.shape)
-	res = np.matmul(img_onehot, colors)
+	if not soft:
+		img_hotkey = np.reshape(np.argmax(img, axis = -1), [-1])
+		img_onehot = np.reshape(np.eye(nclass)[img_hotkey], img.shape)
+		res = np.matmul(img_onehot, colors)
+	else:
+		res = np.matmul(img, colors)
 
 	fig = plt.figure(dpi = 160)
 	if keys is None:
