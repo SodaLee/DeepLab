@@ -79,7 +79,7 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 		if test:
 			sess.run(initializer[1])
 			img, gt = sess.run(pairs[1][0])
-			pred = sess.run(pred_out, feed_dict = {_img: img})
+			pred = sess.run(pred_out, feed_dict = {_imgs: img})
 			for i in range(img.shape[0]):
 				plot.draw_raw_image(img[i], "./test/img_%d_raw.jpg"%i)
 				plot.draw_image(pred[i], "./test/img_%d_pred.jpg"%i)
