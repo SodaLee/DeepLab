@@ -7,7 +7,7 @@ from PythonAPI.pycocotools.coco import COCO
 from summary import summarizer
 import os
 import argparse
-batch_size = 16
+batch_size = 24
 num_classes = 81
 log_dir = "./log"
 model_path = "./model/model.ckpt"
