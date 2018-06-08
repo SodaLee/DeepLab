@@ -96,7 +96,7 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 				print('iter%d' % epoc)
 				for i in range(img.shape[0]):
 					plot.draw_raw_image(img[i][:,:,::-1], "./test/img_%d_raw.jpg"%cnt)
-					plot.draw_image(pred[i], "./test/img_%d_pred.jpg"%cnt, train_key)
+					plot.draw_image(pred[i], "./test/img_%d_pred.jpg"%cnt)
 					cnt += 1
 			return
 
