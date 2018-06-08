@@ -15,9 +15,18 @@ model_path = "./model/model.ckpt"
 def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 	train_annFile = './annotations/instances_train2017.json'
 	val_annFile = './annotations/instances_val2017.json'
+	with open('PythonAPI/cat_dict.json', 'r') as f:
+		cat_dict = json.load(f)
 
 	train_coco = COCO(train_annFile)
 	val_coco = COCO(val_annFile)
+	train_key = []
+	val_key = []
+	for i in list(range(num_classes-1)):
+		train_key.append(train_coco.cats[cat_dict['c2id'][str(i)]]['name'])
+		val_key.append(val_coco.cats[cat_dict['c2id'][str(i)]]['name'])
+	train_key.append('background')
+	val_key.append('background')
 	res_train_dataset, deep_train_dataset, train_len = prepare_dataset(train_coco, batch_size, [224, 224])
 	res_val_dataset, deep_val_dataset, val_len = prepare_dataset(val_coco, batch_size, [224, 224])
 
@@ -79,22 +88,28 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 
 		if test:
 			sess.run(initializer[1])
-			img, gt = sess.run(pairs[1][0])
-			pred = sess.run(pred_softmax, feed_dict = {_imgs: img})
-			for i in range(img.shape[0]):
-				plot.draw_raw_image(img[i][:,:,::-1], "./test/img_%d_raw.jpg"%i)
-				plot.draw_image(pred[i], "./test/img_%d_pred.jpg"%i)
+			for epoc in range(100):
+				img, gt = sess.run(pairs[1][0])
+				pred = sess.run(pred_softmax, feed_dict = {_imgs: img})
+				cnt = 0
+				print('iter%d' % epoc)
+				for i in range(img.shape[0]):
+					plot.draw_raw_image(img[i][:,:,::-1], "./test/img_%d_raw.jpg"%cnt)
+					plot.draw_image(pred[i], "./test/img_%d_pred.jpg"%cnt, train_key)
+					cnt += 1
 			return
 
 
 		if train_type == 'Resnet':
 			sess.run(initializer[0])
 			cnt = 0
+			save_cnt = 0
 			epoc = 0
 			while epoc < maxiter:
 				img, label = sess.run(pairs[0][0])
 				_, _loss = sess.run([res_op, res_mean_loss], feed_dict={_imgs: img, _labels: label})
 				cnt += batch_size
+				save_cnt += 1
 				if summary.step == summary.steps - 1:
 					print("%d/%d %f"%(cnt, train_len, cnt / train_len))
 					img, label = sess.run(pairs[0][1])
@@ -109,15 +124,23 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 
 					saver.save(sess, model_path)
 					print('model saved')
+				elif save_cnt >= 50:
+					save_cnt = 0
+					saver.save(sess, model_path)
+					print('model saved')
+				else:
+					pass
 
 		elif train_type == 'Deep':
 			sess.run(initializer[1])
 			cnt = 0
+			save_cnt = 0
 			epoc = 0
 			while epoc < maxiter:
 				img, gt = sess.run(pairs[1][0])
 				_, _loss = sess.run([pred_op, pred_mean_loss], feed_dict={_imgs: img, _gt: gt})
 				cnt += batch_size
+				save_cnt += 1
 				if summary.step == summary.steps - 1:
 					print("%d/%d %f"%(cnt, train_len, cnt / train_len))
 					img, gt = sess.run(pairs[1][1])
@@ -132,6 +155,12 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 
 					saver.save(sess, model_path)
 					print('model saved')
+				elif save_cnt >= 50:
+					save_cnt = 0
+					saver.save(sess, model_path)
+					print('model saved')
+				else:
+					pass
 		else:
 			assert False, "unknown training type %s" % train_type
 
