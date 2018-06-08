@@ -84,9 +84,11 @@ def prepare_dataset(coco, batch_size, img_size = [128, 128]):
 	deep_dataset = dataset.map(lambda imgId: tf.py_func(_parse_deep, [imgId], [tf.float32, tf.float32], name='parse_deep'))
 	deep_dataset = deep_dataset.map(_resize_deep)
 	deep_dataset = deep_dataset.batch(batch_size).repeat()
+	deep_dataset = deep_dataset.apply(tf.contrib.data.prefetch_to_device("/device:GPU:0")) 
 
 	res_dataset = dataset.map(lambda imgId: tf.py_func(_parse_res, [imgId], [tf.float32, tf.float32], name='parse_res'))
 	res_dataset = res_dataset.map(_resize_res)
 	res_dataset = res_dataset.batch(batch_size).repeat()
+	res_dataset = res_dataset.apply(tf.contrib.data.prefetch_to_device("/device:GPU:0"))
 
 	return res_dataset, deep_dataset, len(imgIds)

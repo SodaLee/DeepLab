@@ -75,7 +75,7 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 	)
 
 	config = tf.ConfigProto()
-	config.gpu_options.per_process_gpu_memory_fraction = 0.7
+	# config.gpu_options.per_process_gpu_memory_fraction = 0.9
 	config.gpu_options.allow_growth = True
 
 	with tf.Session(config = config) as sess:
