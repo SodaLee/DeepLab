@@ -1,4 +1,5 @@
 import plot
+import json
 from PythonAPI.prepare_data import prepare_dataset
 import deeplab
 import tensorflow as tf
@@ -88,10 +89,10 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 
 		if test:
 			sess.run(initializer[1])
+			cnt = 0
 			for epoc in range(100):
 				img, gt = sess.run(pairs[1][0])
 				pred = sess.run(pred_softmax, feed_dict = {_imgs: img})
-				cnt = 0
 				print('iter%d' % epoc)
 				for i in range(img.shape[0]):
 					plot.draw_raw_image(img[i][:,:,::-1], "./test/img_%d_raw.jpg"%cnt)
