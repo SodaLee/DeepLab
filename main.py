@@ -34,8 +34,8 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 	handle = tf.placeholder(tf.string, [])
 	iterator = tf.data.Iterator.from_string_handle(
 		handle,
-		[tf.float32, tf.float32, tf.float32],
-		[[None, None, None, 3], [None, num_classes], [None, None, None, num_classes]]
+		(tf.float32, tf.float32, tf.float32),
+		((None, None, None, 3), (None, num_classes), (None, None, None, num_classes))
 	)
 	imgs, labels, gt = iterator.get_next()
 

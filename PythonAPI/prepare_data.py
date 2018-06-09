@@ -32,13 +32,12 @@ def prepare_dataset(coco, batch_size, img_size = [128, 128]):
 				np.ones([1, img_decoded.shape[0], img_decoded.shape[1]])
 				],
 				axis = 0)
-		)
+		).astype(np.float32)
 
 		labels = np.sum(masks, axis = (1, 2))
 		labels /= np.sum(labels)
-		labels = labels.astype(np.float32)
 
-		masks = masks.transpose(1, 2, 0).astype(np.float32)
+		masks = masks.transpose(1, 2, 0)
 
 		return img_decoded.astype(np.float32) / 255, labels, masks
 	
@@ -58,7 +57,7 @@ def prepare_dataset(coco, batch_size, img_size = [128, 128]):
 	num_classes = 81
 
 	dataset = tf.data.Dataset.from_tensor_slices(imgIds)
-	dataset = dataset.map(map_func = lambda imgId: tf.py_func(_parse_fn, [imgId], [tf.float32, tf.float32, tf.float32], name = "parse data"), num_parallel_calls = 8)
+	dataset = dataset.map(map_func = lambda imgId: tf.py_func(_parse_fn, [imgId], [tf.float32, tf.float32, tf.float32], name = "parse_data"), num_parallel_calls = 8)
 	dataset = dataset.map(map_func = _resize_fn, num_parallel_calls = 8)
 	dataset = dataset.batch(batch_size).repeat()
 	dataset = dataset.apply(tf.contrib.data.prefetch_to_device("/device:GPU:0"))
