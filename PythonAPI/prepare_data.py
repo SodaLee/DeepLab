@@ -10,30 +10,7 @@ import json
 
 def prepare_dataset(coco, batch_size, img_size = [128, 128]):
 
-	def _parse_res(imgId):
-		img = coco.imgs[imgId]
-		fname = os.path.join(imgDir, img['file_name'])
-		if not os.path.exists(fname):
-			urlretrieve(img['coco_url'], fname)
-		img_decoded = cv2.imread(fname)
-
-		annLists = [coco.imgToAnns[imgId]]
-		anns = list(itertools.chain.from_iterable(annLists))
-		masks = np.zeros([num_classes, img_decoded.shape[0], img_decoded.shape[1]])
-
-		for ann in anns:
-			mask = coco.annToMask(ann)
-			masks[cat_dict['id2c'][str(ann['category_id'])]] += mask
-		label = np.sum(masks, axis = (1, 2))
-		label_sum = np.sum(label)
-		if label_sum > 0:
-			label = label / label_sum
-		else:
-			label[-1] = 1
-
-		return img_decoded.astype(np.float32) / 255, label.astype(np.float32)
-
-	def _parse_deep(imgId):
+	def _parse_fn(imgId):
 		img = coco.imgs[imgId]
 		fname = os.path.join(imgDir, img['file_name'])
 		if not os.path.exists(fname):
@@ -57,20 +34,21 @@ def prepare_dataset(coco, batch_size, img_size = [128, 128]):
 				axis = 0)
 		)
 
-		return img_decoded.astype(np.float32) / 255, masks.transpose(1, 2, 0).astype(np.float32)
-	
-	def _resize_res(img, label):
-		img.set_shape([None, None, 3])
-		img = tf.image.resize_images(img, img_size)
-		label.set_shape([num_classes])
-		return img, label
+		labels = np.sum(masks, axis = (1, 2))
+		labels /= np.sum(labels)
+		labels = labels.astype(np.float32)
 
-	def _resize_deep(img, masks):
+		masks = masks.transpose(1, 2, 0).astype(np.float32)
+
+		return img_decoded.astype(np.float32) / 255, labels, masks
+	
+	def _resize_fn(img, labels, masks):
 		img.set_shape([None, None, 3])
 		img = tf.image.resize_images(img, img_size)
+		labels.set_shape([num_classes])
 		masks.set_shape([None, None, num_classes])
 		masks = tf.image.resize_images(masks, img_size)
-		return img, masks
+		return img, labels, masks
 
 	imgDir = 'data/imgs'
 	annDir = 'data/anns'
@@ -80,15 +58,9 @@ def prepare_dataset(coco, batch_size, img_size = [128, 128]):
 	num_classes = 81
 
 	dataset = tf.data.Dataset.from_tensor_slices(imgIds)
+	dataset = dataset.map(map_func = lambda imgId: tf.py_func(_parse_fn, [imgId], [tf.float32, tf.float32, tf.float32], name = "parse data"), num_parallel_calls = 8)
+	dataset = dataset.map(map_func = _resize_fn, num_parallel_calls = 8)
+	dataset = dataset.batch(batch_size).repeat()
+	dataset = dataset.apply(tf.contrib.data.prefetch_to_device("/device:GPU:0"))
 
-	deep_dataset = dataset.map(map_func=lambda imgId: tf.py_func(_parse_deep, [imgId], [tf.float32, tf.float32], name='parse_deep'), num_parallel_calls=8)
-	deep_dataset = deep_dataset.map(map_func=_resize_deep, num_parallel_calls=8)
-	deep_dataset = deep_dataset.batch(batch_size).repeat()
-	deep_dataset = deep_dataset.apply(tf.contrib.data.prefetch_to_device("/device:GPU:0")) 
-
-	res_dataset = dataset.map(map_func=lambda imgId: tf.py_func(_parse_res, [imgId], [tf.float32, tf.float32], name='parse_res'), num_parallel_calls=8)
-	res_dataset = res_dataset.map(map_func=_resize_res, num_parallel_calls=8)
-	res_dataset = res_dataset.batch(batch_size).repeat()
-	res_dataset = res_dataset.apply(tf.contrib.data.prefetch_to_device("/device:GPU:0"))
-
-	return res_dataset, deep_dataset, len(imgIds)
+	return dataset, len(imgIds)
