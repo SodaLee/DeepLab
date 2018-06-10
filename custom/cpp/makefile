@@ -6,17 +6,20 @@ TF_CFLAGS := $(shell python -c 'import tensorflow as tf; print(" ".join(tf.sysco
 TF_LFLAGS := $(shell python -c 'import tensorflow as tf; print(" ".join(tf.sysconfig.get_link_flags()))')
 
 # Flags required for all cases
-CFLAGS := -std=c++11 -shared -fPIC -O2 -Wno-attributes -ftree-vectorize
+CFLAGS := -std=c++11 -shared -fPIC -O2 -Wno-attributes -ftree-vectorize -ftree-vectorizer-verbose=1 -DPARALLEL -fopenmp
 # Set a special flag if we are on macOS
 ifeq ($(shell uname -s), Darwin)
 	CFLAGS += -undefined dynamic_lookup
 endif
 
-.PHONY: all clean
+.PHONY: all clean compile
 all: MessagePassing.so
 
 MessagePassing.so: MessagePassing.cpp Permutohedral.hpp
-	$(CC) $(CFLAGS) -o MessagePassing.so MessagePassing.cpp Permutohedral.hpp $(TF_CFLAGS) $(TF_LFLAGS)
+	$(CC) $(CFLAGS) -o MessagePassing.so MessagePassing.cpp $(TF_CFLAGS) $(TF_LFLAGS)
+
+compile: MessagePassing.cpp Permutohedral.hpp
+	$(CC) $(CFLAGS) -c -o MessagePassing.o MessagePassing.cpp $(TF_CFLAGS)
 
 clean:
 	$(RM) MessagePassing.so

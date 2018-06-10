@@ -8,6 +8,9 @@
 #include <vector>
 #include <cmath>
 #include <cstring>
+#ifdef PARALLEL
+#include <omp.h>
+#endif
 
 #include "tensorflow/core/framework/tensor.h"
 
@@ -152,15 +155,23 @@ void Permutohedral<T>::init(const T *const kernel, int d, int batch, int np)
     for(int i = 0; i < batch; i++)
         new(neighbours + i) vector<Neighbour>();
 
+
     T *scale_factor = new T[d];
-    T *Ex = new T[d+1];//position vector
-    int *rem0 = new int[d+1];//reminder-0 point
-    int *_key = new int[d+1];
     int *canonical = new int[(d+1) * (d+1)];
     int *n1 = new int[d+1];
     int *n2 = new int[d+1];
     kernel_batch = batch;
     kernel_d = d;
+#ifndef PARALLEL
+    T *Ex = new T[d+1];//position vector
+    int *rem0 = new int[d+1];//reminder-0 point
+    int *_key = new int[d+1];
+#else
+    int max_thread_num = omp_get_max_threads();
+    T *Ex_buf = new T[max_thread_num * (d+1)];
+    int *rem0_buf = new int[max_thread_num * (d+1)];
+    int *_key_buf = new int[max_thread_num * (d+1)];
+#endif
 
     // canonical simplex matrix(transposed)
     for(int i = 0; i < d+1; i++)
@@ -181,9 +192,17 @@ void Permutohedral<T>::init(const T *const kernel, int d, int batch, int np)
         vector<Key> keys;
         keys.clear();
         int cnt = 0;
+    #ifdef PARALLEL
+        #pragma omp parallel for
+    #endif
         for(int p = 0; p < np; p++)
         {
             const T * point = &kernel[(b * np + p) * d];
+        #ifdef PARALLEL
+            T *Ex = &Ex_buf[omp_get_thread_num() * (d+1)];
+            int *rem0 = &rem0_buf[omp_get_thread_num() * (d+1)];
+            int *_key = &_key_buf[omp_get_thread_num() * (d+1)];
+        #endif
 
             // E\vec x
             T acc = 0;
@@ -256,6 +275,10 @@ void Permutohedral<T>::init(const T *const kernel, int d, int batch, int np)
                 for(int j = 0; j < d; j++)
                     _key[j] = rem0[j] + canonical[i * (d+1) + _rank[j]];
                 Key key(d, _key, b);
+            #ifdef PARALLEL
+                #pragma omp critical
+                {
+            #endif
                 auto iter = hash_table.find(key);
                 if(iter != hash_table.end())
                     _offset[i] = iter->second;
@@ -266,6 +289,9 @@ void Permutohedral<T>::init(const T *const kernel, int d, int batch, int np)
                     keys.push_back(key);
                     cnt++;
                 }
+            #ifdef PARALLEL
+                }
+            #endif
             }
         }
         int M = cnt;
@@ -289,12 +315,18 @@ void Permutohedral<T>::init(const T *const kernel, int d, int batch, int np)
         }
     }
     delete[] scale_factor;
-    delete[] Ex;
-    delete[] rem0;
     delete[] canonical;
-    delete[] _key;
     delete[] n1;
     delete[] n2;
+#ifndef PARALLEL
+    delete[] Ex;
+    delete[] rem0;
+    delete[] _key;
+#else
+    delete[] Ex_buf;
+    delete[] rem0_buf;
+    delete[] _key_buf;
+#endif
 }
 
 template<typename T>
@@ -320,6 +352,9 @@ void Permutohedral<T>::compute(Tensor &output_tensor, const Tensor& unary_tensor
         auto unary = unary_tensor.Slice(b, b+1).flat<T>();
 
         //splatting
+    #ifdef PARALLEL
+        #pragma omp parallel for
+    #endif
         for(int p = 0; p < np; p++)
         {
             for(int j = 0; j < kernel_d+1; j++)
@@ -327,6 +362,9 @@ void Permutohedral<T>::compute(Tensor &output_tensor, const Tensor& unary_tensor
                 int o = offset_[(kb * np + p) * (kernel_d+1) + j] + 1;
                 T w = barycentric_[(kb * np + p) * (kernel_d+1) + j];
                 for(int k = 0; k < d; k++)
+            #ifdef PARALLEL
+                #pragma omp critical
+            #endif
                     values[o * d + k] += w * unary(p * d + k);
             }
         }
@@ -373,6 +411,9 @@ void Permutohedral<T>::compute(Tensor &output_tensor, const Tensor& unary_tensor
 
         T alpha = 1.0 / (1 + pow(2, -kernel_d));
         //slicing
+    #ifdef PARALLEL
+        #pragma omp parallel for
+    #endif
         for(int p = 0; p < np; p++)
         {
             if(!add)
