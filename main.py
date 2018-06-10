@@ -113,7 +113,7 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 			sess.run(val_iter.initializer)
 			cnt = 0
 			for epoc in range(100):
-				pred = sess.run(pred_softmax, feed_dict = {handle: val_handle})
+				img, pred = sess.run([imgs, pred_softmax], feed_dict = {handle: val_handle})
 				print('iter%d' % epoc)
 				for i in range(img.shape[0]):
 					plot.draw_raw_image(img[i][:,:,::-1], "./test/img_%d_raw.jpg"%cnt)

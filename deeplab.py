@@ -19,13 +19,14 @@ class deeplab_v3_plus(object):
 	def _upsample(self, inputs, scale, name):
 		with tf.name_scope(name):
 			channel = inputs.get_shape()[-1]
-			fshape = [scale+1, scale+1, channel, channel]
-			fshape = tf.TensorShape(fshape)
-			f = tf.Variable(tf.truncated_normal(fshape, stddev = 0.1), "filter")
+			#fshape = [scale+1, scale+1, channel, channel]
+			#fshape = tf.TensorShape(fshape)
+			#f = tf.Variable(tf.truncated_normal(fshape, stddev = 0.1), "filter")
 			b, h, w, c = tf.unstack(tf.shape(inputs))
-			outshape = tf.stack([b, h * scale, w * scale, channel])
-			deconv = tf.nn.conv2d_transpose(inputs, f, outshape, [1,scale,scale,1], padding = "SAME", name = "deconvolution")
-			return deconv
+			outshape = tf.stack([h * scale, w * scale])
+			#deconv = tf.nn.conv2d_transpose(inputs, f, outshape, [1,scale,scale,1], padding = "SAME", name = "deconvolution")
+			#return deconv
+			return tf.image.resize_images(inputs, outshape)
 
 	def _encoder(self, x, aspp_channel1, aspp_channel2, name):
 		with tf.name_scope(name):
