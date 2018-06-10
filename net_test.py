@@ -32,6 +32,8 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 
 	resnet_step = tf.Variable(0, dtype = tf.int64, name = "resnet_step", trainable = False)
 	deep_step = tf.Variable(0, dtype = tf.int64, name = "deep_step", trainable = False)
+	crf_step = tf.Variable(0, dtype = tf.int64, name = "crf_step", trainable = False)
+	crf_separate = tf.placeholder(tf.bool, shape = [])
 
 	_deeplab = deeplab.deeplab_v3_plus(imgs, [128, 64], [48, num_classes], num_classes)
 	res_out = _deeplab.get_dense()
@@ -40,7 +42,6 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 	res_op = tf.train.AdamOptimizer(learning_rate = 1e-4).minimize(res_loss, global_step = resnet_step)
 
 	pred_out = _deeplab.get_pred()
-	pred_softmax = tf.nn.softmax(pred_out)
 	pred_loss = tf.nn.softmax_cross_entropy_with_logits_v2(
 		labels=tf.stop_gradient(gt),
 		logits=pred_out,
@@ -48,6 +49,15 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 	pred_mean_loss = tf.reduce_mean(pred_loss)
 	pred_op = tf.train.AdamOptimizer(learning_rate = 1e-4).minimize(pred_loss, global_step = deep_step)
 	pred_acc = tf.reduce_mean(tf.cast(tf.argmax(pred_out, -1) == tf.argmax(gt, -1), tf.float32))
+
+	crf_in = tf.cond(crf_separate, lambda: tf.stop_gradient(pred_out), lambda: pred_out)
+	crf_out = crf_rnn(crf_in, imgs, tf.constant([1., 1., 1., .5, .5], dtype = tf.float32), 5, "crf_rnn")
+	crf_loss = tf.nn.softmax_cross_entropy_with_logits_v2(
+		labels = tf.stop_gradient(gt),
+		logits = crf_out,
+		name = "crf_loss")
+	crf_mean_loss = tf.reduce_mean(crf_loss)
+	crf_op = tf.train.AdamOptimizer(learning_rate = 1e-4).minimize(crf_loss, global_step = crf_step)
 
 	summary = summarizer(
 		'./log/test.csv',
@@ -75,5 +85,8 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 		for i in range(5):
 			sess.run(pred_op, feed_dict = {handle: train_handle})
 		print(sess.run(pred_acc, feed_dict = {handle: val_handle}))
+		for i in range(5):
+			sess.run(crf_op, feed_dict = {handle: train_handle, crf_separate: True})
+		print(sess.run(crf_mean_loss, feed_dict = {handle: val_handle, crf_separate: True}))
 
 main()

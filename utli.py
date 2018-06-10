@@ -1,4 +1,5 @@
 import tensorflow as tf
+import MessagePassing.loader
 
 def batch_norm(inputs, name, _global = False):
 	with tf.name_scope(name):
@@ -39,3 +40,36 @@ def dense_layer(inputs, out, name, use_bias = True):
 			bias = tf.Variable(tf.truncated_normal([out], stddev = 0.1), name = "bias")
 			dense = tf.nn.bias_add(dense, bias)
 		return dense
+
+def message_passing(unary, raw, kernel, expand_dims = True):
+	Q = loader.MessagePassing(unary, raw, kernel)
+	if expand_dims:
+		return tf.expand_dims(Q, -1)
+	else:
+		return Q
+
+def crf_cell(H, U, raw, kernels, name):
+	nclass = tf.get_shape(H).as_list()[-1]
+	with tf.variable_scope(name, reuse = True):
+		if(isinstance(kernels, tf.Tensor) or type(kernels[0]) != list):
+			Q = message_passing(H, raw, kernel, False)
+		else:
+			Qs = []
+			for k in kernels:
+				Qs.append(message_passing(H, raw, k))
+			Q = tf.concat(Qs, -1)
+			weights = tf.get_variable("filter_weights", [1, 1, 1, len(kernels), 1])
+			Q = tf.nn.conv3d(Q, weights, [1,1,1,1,1], "SAME")
+		compati = tf.get_variable("compatibility_matrix", [nclass, nclass])
+		Q = tf.matmul(compati, Q)
+		Q = U - Q
+		return Q
+
+def crf_rnn(unary, raw, kernels, maxiter, name):
+	with tf.name_scope(name):
+		H = unary
+		for i in range(maxiter):
+			H = tf.nn.softmax(H)
+			H = crf_cell(H, unary, raw, kernels, "crf_cell")
+		return H
+

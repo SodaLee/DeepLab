@@ -48,6 +48,7 @@ void get_spatial_kernel(T *const output_kernel, int height, int width,
 
 REGISTER_OP("MessagePassing")
     .Attr("T: type {float, double} = float")
+    .Attr("reverse: false")
     .Input("unary: T")
     .Input("raw: T")
     .Input("kernels: T")
@@ -62,9 +63,12 @@ REGISTER_OP("MessagePassing")
 template<typename T>
 class MessagePassingOp: public OpKernel
 {
+    bool reverse;
 public:
     explicit MessagePassingOp(OpKernelConstruction* context): OpKernel(context)
     {
+        OP_REQUIRES_OK(context,
+            context->GetAttr("reverse", &reverse));
     }
     void Compute(OpKernelContext* context) override
     {
@@ -94,12 +98,12 @@ public:
         
         get_bilateral_kernel(kernel, raw_tensor, kernels(0), kernels(1));
         p.init(kernel, nchann + 2, batch_size, height * width);
-        p.compute(*output_tensor, unary_tensor, false, kernels(3));
+        p.compute(*output_tensor, unary_tensor, false, kernels(3), reverse);
 
         get_spatial_kernel(kernel, height, width, kernels(2));
         p.clear();
         p.init(kernel, 2, 1, height * width);
-        p.compute(*output_tensor, unary_tensor, true, kernels(4));
+        p.compute(*output_tensor, unary_tensor, true, kernels(4), reverse);
         delete[] kernel;
     }
 };

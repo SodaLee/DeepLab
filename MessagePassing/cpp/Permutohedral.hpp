@@ -106,7 +106,7 @@ public:
     ~Permutohedral();
     void clear();
     void init(const T *const kernel, int d, int batch, int np);
-    void compute(Tensor &output_tensor, const Tensor& unary_tensor, bool add, T weight);
+    void compute(Tensor &output_tensor, const Tensor& unary_tensor, bool add, T weight, bool reverse);
 };
 
 template<typename T>
@@ -293,7 +293,7 @@ void Permutohedral<T>::init(const T *const kernel, int d, int batch, int np)
 }
 
 template<typename T>
-void Permutohedral<T>::compute(Tensor &output_tensor, const Tensor& unary_tensor, bool add, T weight)
+void Permutohedral<T>::compute(Tensor &output_tensor, const Tensor& unary_tensor, bool add, T weight, bool reverse)
 {
     int batch_size = unary_tensor.dim_size(0),
         height = unary_tensor.dim_size(1),
@@ -327,21 +327,43 @@ void Permutohedral<T>::compute(Tensor &output_tensor, const Tensor& unary_tensor
         }
 
         //bluring
-        for(int j = 0; j < kernel_d+1; j++)
+        if(reverse)
         {
-            for(int i = 0; i < M; i++)
+            for(int j = 0; j < kernel_d+1; j++)
             {
-                T *oldv = &values[(i+1) * d];
-                T *newv = &newval[(i+1) * d];
-                Neighbour n = neighbours[kb][j * M + i];
-                int n1 = n.first + 1;
-                int n2 = n.second + 1;
-                T *n1v = &values[n1 * d];
-                T *n2v = &values[n2 * d];
-                for(int k = 0; k < d; k++)
-                    newv[k] = oldv[k] + 0.5 * (n1v[k] + n2v[k]);
+                for(int i = 0; i < M; i++)
+                {
+                    T *oldv = &values[(i+1) * d];
+                    T *newv = &newval[(i+1) * d];
+                    Neighbour n = neighbours[kb][j * M + i];
+                    int n1 = n.first + 1;
+                    int n2 = n.second + 1;
+                    T *n1v = &values[n1 * d];
+                    T *n2v = &values[n2 * d];
+                    for(int k = 0; k < d; k++)
+                        newv[k] = oldv[k] + 0.5 * (n1v[k] + n2v[k]);
+                }
+                std::swap(values, newval);
             }
-            std::swap(values, newval);
+        }
+        else
+        {
+            for(int j = kernel_d; j >=0; j--)
+            {
+                for(int i = 0; i < M; i++)
+                {
+                    T *oldv = &values[(i+1) * d];
+                    T *newv = &newval[(i+1) * d];
+                    Neighbour n = neighbours[kb][j * M + i];
+                    int n1 = n.first + 1;
+                    int n2 = n.second + 1;
+                    T *n1v = &values[n1 * d];
+                    T *n2v = &values[n2 * d];
+                    for(int k = 0; k < d; k++)
+                        newv[k] = oldv[k] + 0.5 * (n1v[k] + n2v[k]);
+                }
+                std::swap(values, newval);
+            }
         }
 
         T alpha = 1.0 / (1 + pow(2, -kernel_d));
