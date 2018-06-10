@@ -33,11 +33,14 @@ struct Key
     }
     ~Key()
     {
-        *shared -= 1;
-        if(*shared == 0)
+        if(shared)
         {
-            delete[] val;
-            delete shared;
+            *shared -= 1;
+            if(*shared == 0)
+            {
+                delete[] val;
+                delete shared;
+            }
         }
     }
     Key(Key&& k)
@@ -136,6 +139,7 @@ void Permutohedral<T>::clear()
     offset_ = rank_ = nullptr;
     barycentric_ = nullptr;
     neighbours = nullptr;
+    hash_table.clear();
 }
 
 template<typename T>
@@ -180,7 +184,6 @@ void Permutohedral<T>::init(const T *const kernel, int d, int batch, int np)
 
             // elevated stores the Ex
             T acc = 0;
-            #pragma omp simd
             for(int i = d; i > 0; i--)
             {
                 T scaled = point[i-1] * scale_factor[i-1];
@@ -192,7 +195,6 @@ void Permutohedral<T>::init(const T *const kernel, int d, int batch, int np)
             // get nearest remainder-0 point
             int coord_sum = 0;//mod (d+1)
             // determine if the point is on the plane
-            #pragma omp simd
             for(int i = 0; i < d+1; i++)
             {
                 int rd = std::round(Ex[i] / (d+1));
@@ -203,7 +205,6 @@ void Permutohedral<T>::init(const T *const kernel, int d, int batch, int np)
             int *_rank = &rank_[(b * np + p) * (d+1)];
             memset(_rank, 0, (d+1) * sizeof(int));
             //get simplex
-            #pragma omp simd
             for(int i = 0; i < d+1; i++)
             {
                 T diff = Ex[i] - rem0[i];
@@ -305,7 +306,7 @@ void Permutohedral<T>::compute(Tensor &output_tensor, const Tensor& unary_tensor
     {
         int kb = b;
         if(kernel_batch == 1)
-            kb = 1;
+            kb = 0;
         int M = neighbours[kb].size();
         T *values = new T[(M+2) * d];
         T *newval = new T[(M+2) * d];
