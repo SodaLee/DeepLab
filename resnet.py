@@ -34,7 +34,7 @@ def atrous_residue_block(inputs, depth, channel_out, rate, name):
 def resnet(x, nconvs, name):
 	assert nconvs[0] == 1, "conv1 should only contain one convolution layer"
 	with tf.name_scope(name):
-		conv1 = conv_layer(x, 7, 32, "conv1", stride = [1,2,2,1])
+		conv1 = conv_layer(x, 5, 32, "conv1", stride = [1,2,2,1])
 		pool1 = tf.nn.max_pool(conv1, [1,3,3,1], [1,2,2,1], padding = "SAME", name = "pool1")
 		conv = pool1
 		depth = conv.get_shape().as_list()[-1]
