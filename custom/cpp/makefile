@@ -6,7 +6,7 @@ TF_CFLAGS := $(shell python -c 'import tensorflow as tf; print(" ".join(tf.sysco
 TF_LFLAGS := $(shell python -c 'import tensorflow as tf; print(" ".join(tf.sysconfig.get_link_flags()))')
 
 # Flags required for all cases
-CFLAGS := -std=c++11 -shared -fPIC -O2 -Wno-attributes
+CFLAGS := -std=c++11 -shared -fPIC -O2 -Wno-attributes -ftree-vectorize
 # Set a special flag if we are on macOS
 ifeq ($(shell uname -s), Darwin)
 	CFLAGS += -undefined dynamic_lookup

@@ -50,6 +50,8 @@ def message_passing(unary, raw, kernel, expand_dims = True):
 
 def crf_cell(H, U, raw, kernels, name):
 	nclass = H.get_shape().as_list()[-1]
+	raw = tf.stop_gradient(raw)
+	U = tf.stop_gradient(U)
 	with tf.variable_scope(name, reuse = tf.AUTO_REUSE):
 		if(isinstance(kernels, tf.Tensor) or type(kernels[0]) != list):
 			Q = message_passing(H, raw, kernels, False)

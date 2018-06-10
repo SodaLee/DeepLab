@@ -8,6 +8,7 @@ from PythonAPI.pycocotools.coco import COCO
 from summary import summarizer
 import os
 import argparse
+from utli import crf_rnn
 batch_size = 24
 num_classes = 81
 log_dir = "./log"
@@ -87,7 +88,7 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 	restorer = tf.train.Saver(restore_dict)
 
 	summary = summarizer(
-		os.path.join(log_dir, 'log%s.csv'%train_type),
+		os.path.join(log_dir, 'log%s.csv'%('CRF' if train_type == 'CRF-only' else train_type)),
 		['step', 'train_loss', 'val_loss'],
 		25, restore = restore
 	)
@@ -179,6 +180,7 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 					print('model saved')
 				else:
 					pass
+
 		elif train_type in ["CRF-only", "CRF"]:
 			crf_only = (train_type == "CRF-only")
 			cnt = 0
