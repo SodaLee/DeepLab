@@ -2,6 +2,7 @@ import deeplab
 import tensorflow as tf
 from summary import summarizer
 import numpy as np
+from utli import crf_rnn
 batch_size = 2
 num_classes = 20
 
@@ -81,12 +82,15 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 		
 		for i in range(5):
 			sess.run(res_op, feed_dict = {handle: train_handle})
+			print(i)
 		print(sess.run(res_mean_loss, feed_dict = {handle: val_handle}))
 		for i in range(5):
 			sess.run(pred_op, feed_dict = {handle: train_handle})
+			print(i)
 		print(sess.run(pred_acc, feed_dict = {handle: val_handle}))
 		for i in range(5):
 			sess.run(crf_op, feed_dict = {handle: train_handle, crf_separate: True})
+			print(i)
 		print(sess.run(crf_mean_loss, feed_dict = {handle: val_handle, crf_separate: True}))
 
 main()

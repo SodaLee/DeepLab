@@ -1,5 +1,5 @@
 import tensorflow as tf
-import MessagePassing.loader
+import custom
 
 def batch_norm(inputs, name, _global = False):
 	with tf.name_scope(name):
@@ -42,26 +42,26 @@ def dense_layer(inputs, out, name, use_bias = True):
 		return dense
 
 def message_passing(unary, raw, kernel, expand_dims = True):
-	Q = loader.MessagePassing(unary, raw, kernel)
+	Q = custom.layer.message_passing(unary, raw, kernel)
 	if expand_dims:
 		return tf.expand_dims(Q, -1)
 	else:
 		return Q
 
 def crf_cell(H, U, raw, kernels, name):
-	nclass = tf.get_shape(H).as_list()[-1]
-	with tf.variable_scope(name, reuse = True):
+	nclass = H.get_shape().as_list()[-1]
+	with tf.variable_scope(name, reuse = tf.AUTO_REUSE):
 		if(isinstance(kernels, tf.Tensor) or type(kernels[0]) != list):
-			Q = message_passing(H, raw, kernel, False)
+			Q = message_passing(H, raw, kernels, False)
 		else:
 			Qs = []
 			for k in kernels:
 				Qs.append(message_passing(H, raw, k))
 			Q = tf.concat(Qs, -1)
-			weights = tf.get_variable("filter_weights", [1, 1, 1, len(kernels), 1])
+			weights = tf.get_variable("filter_weights", [1, 1, 1, len(kernels), 1], initializer = tf.truncated_normal_initializer(stddev = 0.1))
 			Q = tf.nn.conv3d(Q, weights, [1,1,1,1,1], "SAME")
-		compati = tf.get_variable("compatibility_matrix", [nclass, nclass])
-		Q = tf.matmul(compati, Q)
+		compati = tf.get_variable("compatibility_matrix", [1, 1, nclass, nclass], initializer = tf.random_uniform_initializer())
+		Q = tf.matmul(Q, compati)
 		Q = U - Q
 		return Q
 

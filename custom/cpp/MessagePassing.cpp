@@ -47,8 +47,8 @@ void get_spatial_kernel(T *const output_kernel, int height, int width,
 }
 
 REGISTER_OP("MessagePassing")
-    .Attr("T: type {float, double} = float")
-    .Attr("reverse: false")
+    .Attr("T: {float, double}")
+    .Attr("reverse: bool = false")
     .Input("unary: T")
     .Input("raw: T")
     .Input("kernels: T")
