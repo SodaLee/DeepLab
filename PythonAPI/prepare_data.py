@@ -60,6 +60,6 @@ def prepare_dataset(coco, batch_size, img_size = [128, 128]):
 	dataset = dataset.map(map_func = lambda imgId: tf.py_func(_parse_fn, [imgId], [tf.float32, tf.float32, tf.float32], name = "parse_data"), num_parallel_calls = 8)
 	dataset = dataset.map(map_func = _resize_fn, num_parallel_calls = 8)
 	dataset = dataset.batch(batch_size).repeat()
-	dataset = dataset.apply(tf.contrib.data.prefetch_to_device("/device:GPU:0"))
+	# dataset = dataset.apply(tf.contrib.data.prefetch_to_device("/device:GPU:0"))
 
 	return dataset, len(imgIds)
