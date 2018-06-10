@@ -149,6 +149,8 @@ void Permutohedral<T>::init(const T *const kernel, int d, int batch, int np)
     rank_ = new int[batch * (d+1) * np];
     barycentric_ = new T[batch * (d+1) * np];
     neighbours = new vector<Neighbour>[batch];
+    for(int i = 0; i < batch; i++)
+        new(neighbours + i) vector<Neighbour>();
 
     T *scale_factor = new T[d];
     T *Ex = new T[d+1];//position vector
@@ -178,11 +180,12 @@ void Permutohedral<T>::init(const T *const kernel, int d, int batch, int np)
     {
         vector<Key> keys;
         keys.clear();
+        int cnt = 0;
         for(int p = 0; p < np; p++)
         {
             const T * point = &kernel[(b * np + p) * d];
 
-            // elevated stores the Ex
+            // E\vec x
             T acc = 0;
             for(int i = d; i > 0; i--)
             {
@@ -193,7 +196,7 @@ void Permutohedral<T>::init(const T *const kernel, int d, int batch, int np)
             Ex[0] = acc;
 
             // get nearest remainder-0 point
-            int coord_sum = 0;//mod (d+1)
+            int coord_sum = 0;
             // determine if the point is on the plane
             for(int i = 0; i < d+1; i++)
             {
@@ -226,7 +229,7 @@ void Permutohedral<T>::init(const T *const kernel, int d, int batch, int np)
                     _rank[i] += d+1;
                     rem0[i] += d+1;
                 }
-                else if(_rank[i] > 0)
+                else if(_rank[i] > d)
                 {
                     _rank[i] -= d+1;
                     rem0[i] -= d+1;
@@ -243,8 +246,9 @@ void Permutohedral<T>::init(const T *const kernel, int d, int batch, int np)
                 if(d - _rank[i] + 1 < d+1)
                     _barycentric[d - _rank[i] + 1] -= diff;
                 else
-                    _barycentric[0] += 1 - diff;
+                    _barycentric[0] -=  diff;
             }
+            _barycentric[0] += 1;
 
             int *_offset = &offset_[(b * np + p) * (d+1)];
             for(int i = 0; i < d+1; i++)
@@ -257,20 +261,20 @@ void Permutohedral<T>::init(const T *const kernel, int d, int batch, int np)
                     _offset[i] = iter->second;
                 else
                 {
-                    int s = hash_table.size();
-                    hash_table[key] = s;
-                    _offset[i] = s;
+                    hash_table[key] = cnt;
+                    _offset[i] = cnt;
                     keys.push_back(key);
+                    cnt++;
                 }
             }
         }
-        int M = keys.size();
+        int M = cnt;
         neighbours[b].reserve((d+1) * M);
         for(int j = 0; j < d+1; j++)
         {
             for(int i = 0; i < M; i++)
             {
-                Key key = keys[i];
+                Key& key = keys[i];
                 for(int k = 0; k < d; k++)
                 {
                     n1[k] = key.val[k] - 1;
@@ -307,7 +311,7 @@ void Permutohedral<T>::compute(Tensor &output_tensor, const Tensor& unary_tensor
         int kb = b;
         if(kernel_batch == 1)
             kb = 0;
-        int M = neighbours[kb].size();
+        int M = neighbours[kb].size() / (kernel_d+1);
         T *values = new T[(M+2) * d];
         T *newval = new T[(M+2) * d];
         memset(values, 0, (M+2) * d * sizeof(T));
@@ -318,7 +322,7 @@ void Permutohedral<T>::compute(Tensor &output_tensor, const Tensor& unary_tensor
         //splatting
         for(int p = 0; p < np; p++)
         {
-            for(int j = 0; j < kernel_d; j++)
+            for(int j = 0; j < kernel_d+1; j++)
             {
                 int o = offset_[(kb * np + p) * (kernel_d+1) + j] + 1;
                 T w = barycentric_[(kb * np + p) * (kernel_d+1) + j];
