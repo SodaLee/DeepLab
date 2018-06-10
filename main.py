@@ -46,6 +46,8 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 
 	resnet_step = tf.Variable(0, dtype = tf.int64, name = "resnet_step", trainable = False)
 	deep_step = tf.Variable(0, dtype = tf.int64, name = "deep_step", trainable = False)
+	crf_step = tf.Variable(0, dtype = tf.int64, name = "crf_step", trainable = False)
+	crf_seperate = tf.placeholder(tf.bool, shape = [])
 
 	_deeplab = deeplab.deeplab_v3_plus(imgs, [128, 64], [48, num_classes], num_classes)
 	res_out = _deeplab.get_dense()
@@ -63,6 +65,17 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 	pred_op = tf.train.AdamOptimizer(learning_rate = 1e-4).minimize(pred_loss, global_step = deep_step)
 	pred_acc = tf.reduce_mean(tf.cast(tf.argmax(pred_out, -1) == tf.argmax(gt, -1), tf.float32))
 
+	crf_in = tf.cond(crf_seperate, lambda: tf.stop_gradient(pred_out), lambda: pred_out)
+	crf_kernel = tf.constant([1., 1., 1., .5, .5], dtype = tf.float32)
+	crf_out = crf_rnn(crf_in, imgs, crf_kernel, 5, "crf_rnn")
+	crf_loss = tf.nn.softmax_cross_entropy_with_logits_v2(
+		labels=tf.stop_gradient(gt),
+		logits=crf_out,
+		name='crf_loss')
+	crf_mean_loss = tf.reduce_mean(crf_loss)
+	crf_op = tf.train.AdamOptimizer(learning_rate = 1e-4).minimize(crf_loss, global_step = crf_step)
+	crf_acc = tf.reduce_mean(tf.cast(tf.argmax(crf_out, -1) == tf.argmax(gt, -1), tf.float32))
+
 	reader = pywrap_tensorflow.NewCheckpointReader(model_path)
 	restore_dict = dict()
 	for v in tf.get_collection(tf.GraphKeys.VARIABLES):
@@ -75,7 +88,7 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 
 	summary = summarizer(
 		os.path.join(log_dir, 'log%s.csv'%train_type),
-		['step', 'res_train_loss', 'res_val_loss'] if train_type == 'Resnet' else ['step', 'deep_train_loss', 'deep_val_loss'],
+		['step', 'train_loss', 'val_loss'],
 		25, restore = restore
 	)
 
@@ -120,9 +133,9 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 				if summary.step == summary.steps - 1:
 					print("%d/%d %f"%(cnt, train_len, cnt / train_len))
 					_valloss = sess.run(res_mean_loss, feed_dict={handle: val_handle})
-					summary.summary(res_train_loss = _loss, res_val_loss = _valloss, step = sess.run(resnet_step))
+					summary.summary(train_loss = _loss, val_loss = _valloss, step = sess.run(resnet_step))
 				else:
-					summary.summary(res_train_loss = _loss)
+					summary.summary(train_loss = _loss)
 				if cnt >= train_len:
 					epoc += 1
 					print('epoc %d done' % epoc)
@@ -149,9 +162,9 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 				if summary.step == summary.steps - 1:
 					print("%d/%d %f"%(cnt, train_len, cnt / train_len))
 					_valloss = sess.run(pred_mean_loss, feed_dict={handle: val_handle})
-					summary.summary(deep_train_loss = _loss, deep_val_loss = _valloss, step = sess.run(deep_step))
+					summary.summary(train_loss = _loss, val_loss = _valloss, step = sess.run(deep_step))
 				else:
-					summary.summary(deep_train_loss = _loss)
+					summary.summary(train_loss = _loss)
 				if cnt >= train_len:
 					epoc += 1
 					print('epoc %d done' % epoc)
@@ -166,6 +179,36 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 					print('model saved')
 				else:
 					pass
+		elif train_type in ["CRF-only", "CRF"]:
+			crf_only = (train_type == "CRF-only")
+			cnt = 0
+			save_cnt = 0
+			epoc = 0
+			while epoc < maxiter:
+				_, _loss = sess.run([crf_op, crf_mean_loss], feed_dict={handle: train_handle, crf_seperate: crf_only})
+				cnt += batch_size
+				save_cnt += 1
+				if summary.step == summary.steps - 1:
+					print("%d/%d %f"%(cnt, train_len, cnt / train_len))
+					_valloss = sess.run(crf_mean_loss, feed_dict={handle: val_handle, crf_seperate: crf_only})
+					summary.summary(train_loss = _loss, val_loss = _valloss, step = sess.run(crf_step))
+				else:
+					summary.summary(train_loss = _loss)
+				if cnt >= train_len:
+					epoc += 1
+					print('epoc %d done' % epoc)
+					cnt -= train_len
+
+					saver.save(sess, model_path)
+					print('model saved')
+					save_cnt = 0
+				elif save_cnt >= 50:
+					save_cnt = 0
+					saver.save(sess, model_path)
+					print('model saved')
+				else:
+					pass
+			
 		else:
 			assert False, "unknown training type %s" % train_type
 
@@ -174,7 +217,7 @@ if __name__ == '__main__':
 	parser.add_argument("-g", "--gpu", help = "specify which gpu to use", default = "0")
 	parser.add_argument("-t", "--type",
 		help = "specify the type of training/test",
-		choices = ["Resnet", "Deep"],
+		choices = ["Resnet", "Deep", "CRF-only", "CRF"],
 		default = "Resnet")
 	parser.add_argument("-l", "--log", help = "directory name of log files", default = "./log")
 	parser.add_argument("-r", "--restore", help = "restore from checkpoint", action = "store_true")
