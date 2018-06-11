@@ -25,7 +25,7 @@ struct Key
     Key(int d, int *val, int tag)
     {
         this->d = d;
-        this->val = new int[d];
+        this->val = new int[d+1];
         memcpy(this->val, val, d * sizeof(int));
         this->tag = tag;
         shared = new int;
@@ -50,6 +50,7 @@ struct Key
         tag = k.tag;
         k.val = nullptr;
         shared = k.shared;
+	k.shared = nullptr;
     }
     Key(const Key& k)
     {
@@ -103,7 +104,6 @@ private:
     T *barycentric_;
     vector<Neighbour> *neighbours;
     int kernel_batch, kernel_d;
-    std::unordered_map<Key, int, hash_key> hash_table; 
 public:
     Permutohedral();
     ~Permutohedral();
@@ -139,7 +139,6 @@ void Permutohedral<T>::clear()
     offset_ = rank_ = nullptr;
     barycentric_ = nullptr;
     neighbours = nullptr;
-    hash_table.clear();
 }
 
 template<typename T>
@@ -152,6 +151,7 @@ void Permutohedral<T>::init(const T *const kernel, int d, int batch, int np)
     for(int i = 0; i < batch; i++)
         new(neighbours + i) vector<Neighbour>();
 
+    std::unordered_map<Key, int, hash_key> hash_table; 
 
     T *scale_factor = new T[d];
     int *canonical = new int[(d+1) * (d+1)];
@@ -172,13 +172,14 @@ void Permutohedral<T>::init(const T *const kernel, int d, int batch, int np)
             canonical[i * (d+1) + j] = i - (d+1);
     }
 
-	T inv_std_dev = std::sqrt(2.0 / 3.0) * (d+1);
-	// Compute the diagonal part of E (p.5 in [Adams etal 2010])
-	for(int i = 0; i < d; i++)
-		scale_factor[i] = inv_std_dev / std::sqrt((T)(i+1) * (i+2));
+    T inv_std_dev = std::sqrt(2.0 / 3.0) * (d+1);
+    // Compute the diagonal part of E (p.5 in [Adams etal 2010])
+    for(int i = 0; i < d; i++)
+        scale_factor[i] = inv_std_dev / std::sqrt((T)(i+1) * (i+2));
 
     for(int b = 0; b < batch; b++)
     {
+	hash_table.clear();
         vector<Key> keys;
         keys.clear();
         int cnt = 0;
@@ -262,7 +263,7 @@ void Permutohedral<T>::init(const T *const kernel, int d, int batch, int np)
                     _offset[i] = iter->second;
                 else
                 {
-                    hash_table[key] = cnt;
+                    hash_table.insert(std::pair<Key, int>(key, cnt));
                     _offset[i] = cnt;
                     keys.push_back(key);
                     cnt++;
@@ -316,11 +317,12 @@ void Permutohedral<T>::compute(Tensor &output_tensor, const Tensor& unary_tensor
         T *values = new T[(M+2) * d];
         T *newval = new T[(M+2) * d];
         memset(values, 0, (M+2) * d * sizeof(T));
-        memset(newval, 0, (M+2) * d * sizeof(T));
+        //memset(newval, 0, (M+2) * d * sizeof(T));
         auto output = output_tensor.Slice(b, b+1).flat<T>();
         auto unary = unary_tensor.Slice(b, b+1).flat<T>();
 
         //splatting
+        //#pragma omp parallel for
         for(int p = 0; p < np; p++)
         {
             for(int j = 0; j < kernel_d+1; j++)
@@ -374,6 +376,7 @@ void Permutohedral<T>::compute(Tensor &output_tensor, const Tensor& unary_tensor
 
         T alpha = 1.0 / (1 + pow(2, -kernel_d));
         //slicing
+        //#pragma omp parallel for
         for(int p = 0; p < np; p++)
         {
             if(!add)

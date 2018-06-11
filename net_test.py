@@ -4,12 +4,14 @@ from summary import summarizer
 import numpy as np
 from utli import crf_rnn
 import time
+import os
+os.environ['CUDA_VISIBLE_DEVICES'] = '1'
 batch_size = 2
-num_classes = 20
+num_classes = 40
 
 def main(train_type='Resnet', restore=False, maxiter=10, test=False):
-	train_data = (np.random.rand(10, 64, 64, 3), np.random.rand(10, 20), np.random.rand(10, 64, 64, 20))
-	val_data = (np.random.rand(2, 64, 64, 3), np.random.rand(2, 20), np.random.rand(2, 64, 64, 20))
+	train_data = (np.random.rand(10, 224, 224, 3), np.random.rand(10, num_classes), np.random.rand(10, 224, 224, num_classes))
+	val_data = (np.random.rand(2, 224, 224, 3), np.random.rand(2, num_classes), np.random.rand(2, 224, 224, num_classes))
 	map_fn = lambda x: x.astype(np.float32)
 	train_data = tuple(map(map_fn, train_data))
 	val_data = tuple(map(map_fn, val_data))
@@ -23,7 +25,7 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 	iterator = tf.data.Iterator.from_string_handle(
 		handle,
 		(tf.float32, tf.float32, tf.float32),
-		((None, None, None, 3), (None, 20), (None, None, None, 20))
+		((None, None, None, 3), (None, num_classes), (None, None, None, num_classes))
 	)
 	imgs, labels, gt = iterator.get_next()
 
@@ -52,8 +54,10 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 	pred_op = tf.train.AdamOptimizer(learning_rate = 1e-4).minimize(pred_loss, global_step = deep_step)
 	pred_acc = tf.reduce_mean(tf.cast(tf.argmax(pred_out, -1) == tf.argmax(gt, -1), tf.float32))
 
-	crf_in = tf.cond(crf_separate, lambda: tf.stop_gradient(pred_out), lambda: pred_out)
-	crf_out = crf_rnn(crf_in, imgs, tf.constant([1., 1., 1., .5, .5], dtype = tf.float32), 5, "crf_rnn")
+	crf_in = tf.image.resize_images(pred_out, (112, 112))
+	crf_in = tf.cond(crf_separate, lambda: tf.stop_gradient(crf_in), lambda: crf_in)
+	crf_out = crf_rnn(crf_in, tf.image.resize_images(imgs, (112, 112)), tf.constant([1., 1., 1., .5, .5], dtype = tf.float32), 3, "crf_rnn")
+	crf_out = tf.image.resize_images(crf_out, (224, 224))
 	crf_loss = tf.nn.softmax_cross_entropy_with_logits_v2(
 		labels = tf.stop_gradient(gt),
 		logits = crf_out,
@@ -88,6 +92,7 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 		print('%.2fs'%(time.time()-tic))
 		print(sess.run(res_mean_loss, feed_dict = {handle: val_handle}))
 
+		sess.run(pred_op, feed_dict = {handle: train_handle})
 		tic = time.time()
 		for i in range(5):
 			sess.run(pred_op, feed_dict = {handle: train_handle})
@@ -95,6 +100,7 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 		print('%.2fs'%(time.time()-tic))
 		print(sess.run(pred_acc, feed_dict = {handle: val_handle}))
 
+		sess.run(crf_op, feed_dict = {handle: train_handle, crf_separate: True})
 		tic = time.time()
 		for i in range(5):
 			sess.run(crf_op, feed_dict = {handle: train_handle, crf_separate: True})
