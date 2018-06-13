@@ -60,7 +60,7 @@ REGISTER_OP("MessagePassing")
         return Status::OK();
     });
 
-template<typename T>
+template<typename Device, typename T>
 class MessagePassingOp: public OpKernel
 {
     bool reverse;
@@ -98,12 +98,12 @@ public:
         
         get_bilateral_kernel(kernel, raw_tensor, kernels(0), kernels(1));
         p.init(kernel, nchann + 2, batch_size, height * width);
-        p.compute(*output_tensor, unary_tensor, false, kernels(3), reverse);
+        p.compute(*output_tensor, unary_tensor, false, kernels(3), reverse, context->eigen_device<Device>());
 
         get_spatial_kernel(kernel, height, width, kernels(2));
         p.clear();
         p.init(kernel, 2, 1, height * width);
-        p.compute(*output_tensor, unary_tensor, true, kernels(4), reverse);
+        p.compute(*output_tensor, unary_tensor, true, kernels(4), reverse, context->eigen_device<Device>());
         delete[] kernel;
     }
 };
@@ -112,9 +112,19 @@ REGISTER_KERNEL_BUILDER(
     Name("MessagePassing")
     .Device(DEVICE_CPU)
     .TypeConstraint<float>("T"),
-    MessagePassingOp<float>);
+    MessagePassingOp<CPUDevice, float>);
 REGISTER_KERNEL_BUILDER(
     Name("MessagePassing")
     .Device(DEVICE_CPU)
     .TypeConstraint<double>("T"),
-    MessagePassingOp<double>);
+    MessagePassingOp<CPUDevice, double>);
+REGISTER_KERNEL_BUILDER(
+    Name("MessagePassing")
+    .Device(DEVICE_GPU)
+    .TypeConstraint<float>("T"),
+    MessagePassingOp<GPUDevice, float>);
+REGISTER_KERNEL_BUILDER(
+    Name("MessagePassing")
+    .Device(DEVICE_GPU)
+    .TypeConstraint<double>("T"),
+    MessagePassingOp<GPUDevice, double>);

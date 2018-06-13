@@ -10,12 +10,16 @@
 #include <cstring>
 
 #include "tensorflow/core/framework/tensor.h"
+#include "tensorflow/core/framework/op_kernel.h"
 
 using std::unordered_map;
 using std::function;
 using std::pair;
 using std::vector;
 using tensorflow::Tensor;
+
+using CPUDevice = Eigen::ThreadPoolDevice;
+using GPUDevice = Eigen::GpuDevice;
 
 struct Key
 {
@@ -100,6 +104,7 @@ class Permutohedral
 {
 private:
     typedef pair<int, int> Neighbour;
+    static_assert(sizeof(Neighbour) == 2 * sizeof(int), "err");
     int *offset_, *rank_;
     T *barycentric_;
     vector<Neighbour> *neighbours;
@@ -109,7 +114,13 @@ public:
     ~Permutohedral();
     void clear();
     void init(const T *const kernel, int d, int batch, int np);
-    void compute(Tensor &output_tensor, const Tensor& unary_tensor, bool add, T weight, bool reverse);
+    void compute(Tensor &output_tensor, const Tensor& unary_tensor, bool add, T weight, bool reverse, const CPUDevice& device);
+    void compute(Tensor &output_tensor, const Tensor& unary_tensor, bool add, T weight, bool reverse, const GPUDevice& device);
+    template<typename Device>
+    void compute(Tensor &output_tensor, const Tensor& unary_tensor, bool add, T weight, bool reverse, const Device& device)
+    {
+        assert(false);
+    }
 };
 
 template<typename T>
@@ -179,7 +190,7 @@ void Permutohedral<T>::init(const T *const kernel, int d, int batch, int np)
 
     for(int b = 0; b < batch; b++)
     {
-	hash_table.clear();
+        hash_table.clear();
         vector<Key> keys;
         keys.clear();
         int cnt = 0;
@@ -300,7 +311,7 @@ void Permutohedral<T>::init(const T *const kernel, int d, int batch, int np)
 }
 
 template<typename T>
-void Permutohedral<T>::compute(Tensor &output_tensor, const Tensor& unary_tensor, bool add, T weight, bool reverse)
+void Permutohedral<T>::compute(Tensor &output_tensor, const Tensor& unary_tensor, bool add, T weight, bool reverse, const CPUDevice& device)
 {
     int batch_size = unary_tensor.dim_size(0),
         height = unary_tensor.dim_size(1),
@@ -335,7 +346,7 @@ void Permutohedral<T>::compute(Tensor &output_tensor, const Tensor& unary_tensor
         }
 
         //bluring
-        if(reverse)
+        if(!reverse)
         {
             for(int j = 0; j < kernel_d+1; j++)
             {
