@@ -3,6 +3,17 @@
 #include "tensorflow/core/framework/op_kernel.h"
 using namespace tensorflow;
 
+#define CHECK_ERROR(error, line) {\
+    cudaError_t err = error;\
+    if(err != cudaSuccess){\
+        fprintf(stderr, "error %d: %s\n", line, cudaGetErrorString(err));\
+        exit(1);\
+    }\
+    else{\
+        fprintf(stderr, "success %d\n", line);\
+    }\
+    }
+
 template<typename T>
 __global__ void splatting(
     const T *unary, int d,
@@ -27,7 +38,7 @@ __global__ void splatting(
 
 template<typename T>
 __global__ void bluring(
-    T *values, T *newval, int kernel_d, int *neighbours, int M, bool reverse
+    T *values, T *newval, int d, int kernel_d, int *neighbours, int M, bool reverse
 )
 {
     int i0 = blockIdx.x * blockDim.x + threadIdx.x;
@@ -40,7 +51,7 @@ __global__ void bluring(
             {
                 T *oldv = &values[(i+1) * d];
                 T *newv = &newval[(i+1) * d];
-                int *n = neighbours[(j * M + i) * 2];
+                int *n = &neighbours[(j * M + i) * 2];
                 int n1 = n[0] + 1;
                 int n2 = n[1] + 1;
                 T *n1v = &values[n1 * d];
@@ -105,7 +116,7 @@ __global__ void slicing(
 }
 
 template<typename T>
-__host__ void Permutohedral<T>::compute(Tensor &output_tensor, const Tensor& unary_tensor, bool add, T weight, bool reverse, const GPUDevice& d)
+__host__ void Permutohedral<T>::compute(Tensor &output_tensor, const Tensor& unary_tensor, bool add, T weight, bool reverse, const GPUDevice& device)
 {
     int batch_size = unary_tensor.dim_size(0),
         height = unary_tensor.dim_size(1),
@@ -116,8 +127,13 @@ __host__ void Permutohedral<T>::compute(Tensor &output_tensor, const Tensor& una
     T *output = output_tensor.flat<T>().data();
 
     T *output_kernel, *unary_kernel;
+    int *offset_kernel;
+    T *barycentric_kernel;
     cudaMalloc(&output_kernel, np * d * sizeof(T));
     cudaMalloc(&unary_kernel, np * d * sizeof(T));
+    cudaMalloc(&offset_kernel, np * (kernel_d+1) * sizeof(int));
+    cudaMalloc(&barycentric_kernel, np * (kernel_d+1) * sizeof(T));
+    CHECK_ERROR(cudaGetLastError(), __LINE__);
     for(int b = 0; b < batch_size; b++)
     {
         int kb = b;
@@ -131,26 +147,33 @@ __host__ void Permutohedral<T>::compute(Tensor &output_tensor, const Tensor& una
         cudaMalloc(&values_kernel, (M+2) * d * sizeof(T));
         cudaMalloc(&newval_kernel, (M+2) * d * sizeof(T));
         cudaMalloc(&neighbours_kernel, M * (kernel_d+1) * sizeof(int) * 2);
+        CHECK_ERROR(cudaGetLastError(), __LINE__);
 
         cudaMemset(values_kernel, 0, (M+2) * d * sizeof(T));
         cudaMemcpy(neighbours_kernel, neighbours[kb].data(), M * (kernel_d+1) * sizeof(int) * 2, cudaMemcpyHostToDevice);
         cudaMemcpy(unary_kernel, &unary[b * np * d], np * d * sizeof(T), cudaMemcpyHostToDevice);
+        if(add)
+            cudaMemcpy(output_kernel, &output[b * np * d], np * d * sizeof(T), cudaMemcpyHostToDevice);
+        cudaMemcpy(offset_kernel, &offset_[kb * np * (kernel_d+1)], np * (kernel_d+1) * sizeof(int), cudaMemcpyHostToDevice);
+        cudaMemcpy(barycentric_kernel, &barycentric_[kb * np * (kernel_d+1)], np * (kernel_d+1) * sizeof(T), cudaMemcpyHostToDevice);
+        CHECK_ERROR(cudaGetLastError(), __LINE__);
 
         const int block_count = 512, thread_per_block = 32;
         splatting<<<block_count, thread_per_block>>>(
             unary_kernel, d, values_kernel, np,
-            &offset_[kb * np * (kernel_d+1)],
-            &barycentric_[kb * np * (kernel_d+1)], kernel_d)
+            offset_kernel, barycentric_kernel, kernel_d);
+        CHECK_ERROR(cudaGetLastError(), __LINE__);
 
         bluring<<<block_count, thread_per_block>>>(
-            values_kernel, newval_kernel, kernel_d, neighbours_kernel, M, reverse);
+            values_kernel, newval_kernel, d, kernel_d, neighbours_kernel, M, reverse);
         if(kernel_d % 2 == 0)
             std::swap(values_kernel, newval_kernel);
+        CHECK_ERROR(cudaGetLastError(), __LINE__);
         
         slicing<<<block_count, thread_per_block>>>(
             output_kernel, d, add, weight, values_kernel, np,
-            &offset_[kb * np * (kernel_d+1)],
-            &barycentric_[kb * np * (kernel_d+1)], kernel_d);
+            offset_kernel, barycentric_kernel, kernel_d);
+        CHECK_ERROR(cudaGetLastError(), __LINE__);
 
         cudaMemcpy(&output[b * np * d], output_kernel, np * d * sizeof(T), cudaMemcpyDeviceToHost);
 
@@ -158,7 +181,11 @@ __host__ void Permutohedral<T>::compute(Tensor &output_tensor, const Tensor& una
         cudaFree(newval_kernel);
         cudaFree(neighbours_kernel);
     }
+    cudaFree(unary_kernel);
+    cudaFree(output_kernel);
+    cudaFree(offset_kernel);
+    cudaFree(barycentric_kernel);
 }
 
-template void Permutohedral<float>::compute(Tensor &output_tensor, const Tensor& unary_tensor, bool add, T weight, bool reverse, const GPUDevice& d);
-template void Permutohedral<double>::compute(Tensor &output_tensor, const Tensor& unary_tensor, bool add, T weight, bool reverse, const GPUDevice& d);
+template class Permutohedral<float>;
+template class Permutohedral<double>;
