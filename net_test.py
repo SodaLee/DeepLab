@@ -54,10 +54,11 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 	pred_op = tf.train.AdamOptimizer(learning_rate = 1e-4).minimize(pred_loss, global_step = deep_step)
 	pred_acc = tf.reduce_mean(tf.cast(tf.argmax(pred_out, -1) == tf.argmax(gt, -1), tf.float32))
 
-	crf_in = tf.image.resize_images(pred_out, (112, 112))
+	#crf_in = tf.image.resize_images(pred_out, (112, 112))
+	crf_in = pred_out
 	crf_in = tf.cond(crf_separate, lambda: tf.stop_gradient(crf_in), lambda: crf_in)
-	crf_out = crf_rnn(crf_in, tf.image.resize_images(imgs, (112, 112)), tf.constant([1., 1., 1., .5, .5], dtype = tf.float32), 3, "crf_rnn")
-	crf_out = tf.image.resize_images(crf_out, (224, 224))
+	crf_out = crf_rnn(crf_in, imgs, tf.constant([1., 1., 1., .5, .5], dtype = tf.float32), 3, "crf_rnn")
+	#crf_out = tf.image.resize_images(crf_out, (224, 224))
 	crf_loss = tf.nn.softmax_cross_entropy_with_logits_v2(
 		labels = tf.stop_gradient(gt),
 		logits = crf_out,

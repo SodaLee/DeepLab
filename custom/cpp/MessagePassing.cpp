@@ -115,8 +115,11 @@ public:
         p.init(kernel, 2, 1, height * width);
         p.compute(*output_tensor, unary_tensor, true, kernels[4], reverse, context->eigen_device<Device>());
         delete[] kernel;
+        delete[] kernels;
         if(is_same<Device, GPUDevice>::value)
-            delete[] kernels;
+        {
+            delete[] raw;
+        }
     }
 };
 
