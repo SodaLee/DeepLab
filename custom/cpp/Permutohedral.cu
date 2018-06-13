@@ -9,9 +9,6 @@ using namespace tensorflow;
         fprintf(stderr, "error %d: %s\n", line, cudaGetErrorString(err));\
         exit(1);\
     }\
-    else{\
-        fprintf(stderr, "success %d\n", line);\
-    }\
     }
 
 template<typename T>
@@ -126,14 +123,12 @@ __host__ void Permutohedral<T>::compute(Tensor &output_tensor, const Tensor& una
     const T *unary = unary_tensor.flat<T>().data();
     T *output = output_tensor.flat<T>().data();
 
-    T *output_kernel, *unary_kernel;
     int *offset_kernel;
     T *barycentric_kernel;
-    cudaMalloc(&output_kernel, np * d * sizeof(T));
-    cudaMalloc(&unary_kernel, np * d * sizeof(T));
+
     cudaMalloc(&offset_kernel, np * (kernel_d+1) * sizeof(int));
     cudaMalloc(&barycentric_kernel, np * (kernel_d+1) * sizeof(T));
-    CHECK_ERROR(cudaGetLastError(), __LINE__);
+
     for(int b = 0; b < batch_size; b++)
     {
         int kb = b;
@@ -143,17 +138,15 @@ __host__ void Permutohedral<T>::compute(Tensor &output_tensor, const Tensor& una
 
         T *values_kernel, *newval_kernel;
         int *neighbours_kernel;
-        T *output_kernel, *unary_kernel;
+        const T *unary_kernel = &unary[b * np * d];
+        T *output_kernel = &output[b * np * d];
+
         cudaMalloc(&values_kernel, (M+2) * d * sizeof(T));
         cudaMalloc(&newval_kernel, (M+2) * d * sizeof(T));
         cudaMalloc(&neighbours_kernel, M * (kernel_d+1) * sizeof(int) * 2);
-        CHECK_ERROR(cudaGetLastError(), __LINE__);
 
         cudaMemset(values_kernel, 0, (M+2) * d * sizeof(T));
         cudaMemcpy(neighbours_kernel, neighbours[kb].data(), M * (kernel_d+1) * sizeof(int) * 2, cudaMemcpyHostToDevice);
-        cudaMemcpy(unary_kernel, &unary[b * np * d], np * d * sizeof(T), cudaMemcpyHostToDevice);
-        if(add)
-            cudaMemcpy(output_kernel, &output[b * np * d], np * d * sizeof(T), cudaMemcpyHostToDevice);
         cudaMemcpy(offset_kernel, &offset_[kb * np * (kernel_d+1)], np * (kernel_d+1) * sizeof(int), cudaMemcpyHostToDevice);
         cudaMemcpy(barycentric_kernel, &barycentric_[kb * np * (kernel_d+1)], np * (kernel_d+1) * sizeof(T), cudaMemcpyHostToDevice);
         CHECK_ERROR(cudaGetLastError(), __LINE__);
@@ -175,17 +168,14 @@ __host__ void Permutohedral<T>::compute(Tensor &output_tensor, const Tensor& una
             offset_kernel, barycentric_kernel, kernel_d);
         CHECK_ERROR(cudaGetLastError(), __LINE__);
 
-        cudaMemcpy(&output[b * np * d], output_kernel, np * d * sizeof(T), cudaMemcpyDeviceToHost);
-
         cudaFree(values_kernel);
         cudaFree(newval_kernel);
         cudaFree(neighbours_kernel);
     }
-    cudaFree(unary_kernel);
-    cudaFree(output_kernel);
     cudaFree(offset_kernel);
     cudaFree(barycentric_kernel);
 }
 
 template class Permutohedral<float>;
 template class Permutohedral<double>;
+

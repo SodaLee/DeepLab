@@ -11,6 +11,7 @@ PythonAPI/pycocotools/_mask.c
 
 # C extensions
 *.so
+*.o
 
 # Distribution / packaging
 .Python
@@ -111,4 +112,5 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
 

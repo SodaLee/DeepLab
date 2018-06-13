@@ -406,7 +406,6 @@ void Permutohedral<T>::compute(Tensor &output_tensor, const Tensor& unary_tensor
         delete[] values;
         delete[] newval;
     }
-
 }
 
 #endif

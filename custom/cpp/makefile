@@ -17,14 +17,16 @@ endif
 .PHONY: all clean compile
 all: MessagePassing.so
 
-MessagePassing.so: MessagePassing.cpp Permutohedral.hpp Permutohedral_cu.o
-	$(CC) $(CFLAGS) -o MessagePassing.so MessagePassing.cpp Permutohedral_cu.o $(TF_CFLAGS) $(TF_LFLAGS) 
+MessagePassing.so: MessagePassing.cpp Permutohedral_cu.o util.o
+	$(CC) $(CFLAGS) -o MessagePassing.so MessagePassing.cpp Permutohedral_cu.o util.o $(TF_CFLAGS) $(TF_LFLAGS) 
 
-compile: MessagePassing.cpp Permutohedral.hpp Permutohedral_cu.o
-	$(CC) $(CFLAGS) -c -o MessagePassing.o MessagePassing.cpp $(TF_CFLAGS)
+compile: Permutohedral_cu.o util.o
 
 Permutohedral_cu.o: Permutohedral.hpp Permutohedral.cu
 	$(NVCC) $(NVFLAGS) -c -o Permutohedral_cu.o Permutohedral.cu $(TF_CFLAGS)
+
+util.o: util.cu
+	$(NVCC) $(NVFLAGS) -c -o util.o util.cu $(TF_CFLAGS)
 
 clean:
 	$(RM) MessagePassing.so
