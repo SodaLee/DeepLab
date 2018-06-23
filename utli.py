@@ -63,6 +63,7 @@ def crf_cell(H, U, raw, kernels, name):
 			weights = tf.get_variable("filter_weights", [1, 1, 1, len(kernels), 1], initializer = tf.truncated_normal_initializer(stddev = 0.1))
 			Q = tf.nn.conv3d(Q, weights, [1,1,1,1,1], "SAME")
 		compati = tf.get_variable("compatibility_matrix", [nclass, nclass], initializer = tf.random_uniform_initializer())
+		compati = tf.nn.softmax(compati, 0)
 		Q = tf.reshape(tf.matmul(tf.reshape(Q, [-1, nclass]), compati), tf.shape(U))
 		Q = U - Q
 		return Q

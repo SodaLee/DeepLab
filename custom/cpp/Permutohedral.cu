@@ -132,29 +132,29 @@ __host__ void Permutohedral<T>::compute(Tensor &output_tensor, const Tensor& una
         cudaMalloc(&neighbours_kernel, M * (kernel_d+1) * sizeof(int) * 2);
 
         cudaMemset(values_kernel, 0, (M+2) * d * sizeof(T));
-        cudaMemcpy(neighbours_kernel, neighbours[kb].data(), M * (kernel_d+1) * sizeof(int) * 2, cudaMemcpyHostToDevice);
-        cudaMemcpy(offset_kernel, &offset_[kb * np * (kernel_d+1)], np * (kernel_d+1) * sizeof(int), cudaMemcpyHostToDevice);
-        cudaMemcpy(barycentric_kernel, &barycentric_[kb * np * (kernel_d+1)], np * (kernel_d+1) * sizeof(T), cudaMemcpyHostToDevice);
-        CHECK_ERROR(cudaGetLastError(), __LINE__);
+        cudaMemcpyAsync(offset_kernel, &offset_[kb * np * (kernel_d+1)], np * (kernel_d+1) * sizeof(int), cudaMemcpyHostToDevice);
+        cudaMemcpyAsync(barycentric_kernel, &barycentric_[kb * np * (kernel_d+1)], np * (kernel_d+1) * sizeof(T), cudaMemcpyHostToDevice);
+        //CHECK_ERROR(cudaGetLastError(), __LINE__);
 
         const int block_count = 512, thread_per_block = 32;
         splatting<<<block_count, thread_per_block>>>(
             unary_kernel, d, values_kernel, np,
             offset_kernel, barycentric_kernel, kernel_d);
-        CHECK_ERROR(cudaGetLastError(), __LINE__);
+        //CHECK_ERROR(cudaGetLastError(), __LINE__);
 
+        cudaMemcpyAsync(neighbours_kernel, neighbours[kb].data(), M * (kernel_d+1) * sizeof(int) * 2, cudaMemcpyHostToDevice);
         for(int j = 0; j < kernel_d+1; j++)
         {
             bluring<<<block_count, thread_per_block>>>(
                 values_kernel, newval_kernel, d, kernel_d, neighbours_kernel + j * M * 2, M, reverse);
             std::swap(values_kernel, newval_kernel);
-            CHECK_ERROR(cudaGetLastError(), __LINE__);
+            //CHECK_ERROR(cudaGetLastError(), __LINE__);
         }
         
         slicing<<<block_count, thread_per_block>>>(
             output_kernel, d, add, weight, values_kernel, np,
             offset_kernel, barycentric_kernel, kernel_d);
-        CHECK_ERROR(cudaGetLastError(), __LINE__);
+        //CHECK_ERROR(cudaGetLastError(), __LINE__);
 
         cudaFree(values_kernel);
         cudaFree(newval_kernel);
