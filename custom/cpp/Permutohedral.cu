@@ -42,46 +42,32 @@ __global__ void bluring(
     int stride = blockDim.x * gridDim.x;
     if(!reverse)
     {
-        for(int j = 0; j < kernel_d+1; j++)
+        for(int i = i0; i < M; i += stride)
         {
-            for(int i = i0; i < M; i += stride)
-            {
-                T *oldv = &values[(i+1) * d];
-                T *newv = &newval[(i+1) * d];
-                int *n = &neighbours[(j * M + i) * 2];
-                int n1 = n[0] + 1;
-                int n2 = n[1] + 1;
-                T *n1v = &values[n1 * d];
-                T *n2v = &values[n2 * d];
-                for(int k = 0; k < d; k++)
-                    newv[k] = oldv[k] + 0.5 * (n1v[k] + n2v[k]);
-            }
-            __syncthreads();
-            T *t = newval;
-            newval = values;
-            values = t;
+            T *oldv = &values[(i+1) * d];
+            T *newv = &newval[(i+1) * d];
+            int *n = &neighbours[i * 2];
+            int n1 = n[0] + 1;
+            int n2 = n[1] + 1;
+            T *n1v = &values[n1 * d];
+            T *n2v = &values[n2 * d];
+            for(int k = 0; k < d; k++)
+                newv[k] = oldv[k] + 0.5 * (n1v[k] + n2v[k]);
         }
     }
     else
     {
-        for(int j = kernel_d; j >= 0; j--)
+        for(int i = i0; i < M; i += stride)
         {
-            for(int i = i0; i < M; i += stride)
-            {
-                T *oldv = &values[(i+1) * d];
-                T *newv = &newval[(i+1) * d];
-                int *n = &neighbours[(j * M + i) * 2];
-                int n1 = n[0] + 1;
-                int n2 = n[1] + 1;
-                T *n1v = &values[n1 * d];
-                T *n2v = &values[n2 * d];
-                for(int k = 0; k < d; k++)
-                    newv[k] = oldv[k] + 0.5 * (n1v[k] + n2v[k]);
-            }
-            __syncthreads();
-            T *t = newval;
-            newval = values;
-            values = t;
+            T *oldv = &values[(i+1) * d];
+            T *newv = &newval[(i+1) * d];
+            int *n = &neighbours[i * 2];
+            int n1 = n[0] + 1;
+            int n2 = n[1] + 1;
+            T *n1v = &values[n1 * d];
+            T *n2v = &values[n2 * d];
+            for(int k = 0; k < d; k++)
+                newv[k] = oldv[k] + 0.5 * (n1v[k] + n2v[k]);
         }
     }
 }
@@ -157,11 +143,13 @@ __host__ void Permutohedral<T>::compute(Tensor &output_tensor, const Tensor& una
             offset_kernel, barycentric_kernel, kernel_d);
         CHECK_ERROR(cudaGetLastError(), __LINE__);
 
-        bluring<<<block_count, thread_per_block>>>(
-            values_kernel, newval_kernel, d, kernel_d, neighbours_kernel, M, reverse);
-        if(kernel_d % 2 == 0)
+        for(int j = 0; j < kernel_d+1; j++)
+        {
+            bluring<<<block_count, thread_per_block>>>(
+                values_kernel, newval_kernel, d, kernel_d, neighbours_kernel + j * M * 2, M, reverse);
             std::swap(values_kernel, newval_kernel);
-        CHECK_ERROR(cudaGetLastError(), __LINE__);
+            CHECK_ERROR(cudaGetLastError(), __LINE__);
+        }
         
         slicing<<<block_count, thread_per_block>>>(
             output_kernel, d, add, weight, values_kernel, np,
