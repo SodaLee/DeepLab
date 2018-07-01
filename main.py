@@ -115,6 +115,8 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 				pair = [imgs, pred_softmax]
 			elif train_type in ["CRF-only", "CRF"]:
 				pair = [imgs, crf_softmax]
+			else:
+				pair = [imgs, pred_softmax]
 
 			sess.run(val_iter.initializer)
 			cnt = 0
