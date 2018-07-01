@@ -68,13 +68,13 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 
 	crf_in = tf.cond(crf_seperate, lambda: tf.stop_gradient(pred_out), lambda: pred_out)
 	crf_kernel = tf.constant([1., 1., 1., .5, .5], dtype = tf.float32)
-	crf_out = crf_rnn(crf_in, imgs, crf_kernel, 5, "crf_rnn")
+	crf_out = crf_rnn(crf_in, imgs, crf_kernel, 3, "crf_rnn")
 	crf_loss = tf.nn.softmax_cross_entropy_with_logits_v2(
 		labels=tf.stop_gradient(gt),
 		logits=crf_out,
 		name='crf_loss')
 	crf_mean_loss = tf.reduce_mean(crf_loss)
-	crf_op = tf.train.AdamOptimizer(learning_rate = 1e-4).minimize(crf_loss, global_step = crf_step)
+	crf_op = tf.train.AdamOptimizer(learning_rate = 2e-5).minimize(crf_loss, global_step = crf_step)
 	crf_acc = tf.reduce_mean(tf.cast(tf.argmax(crf_out, -1) == tf.argmax(gt, -1), tf.float32))
 
 	reader = pywrap_tensorflow.NewCheckpointReader(model_path)
@@ -226,10 +226,12 @@ if __name__ == '__main__':
 	parser.add_argument("-i", "--maxiter", help = "maximum epoc", type = int, default = 10)
 	parser.add_argument("-c", "--checkpoint", help = "checkpoint path", default = "./model/model.ckpt")
 	parser.add_argument("--test", help = "test deeplab", action = "store_true")
+	parser.add_argument("-b", "--batch", help = "batch size", default = 24, type = int)
 
 	args = parser.parse_args()
 
 	os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
 	log_dir = args.log
 	model_path = args.checkpoint
+	batch_size = args.batch
 	main(args.type, restore = args.restore, maxiter = args.maxiter, test = args.test)
