@@ -133,7 +133,7 @@ REGISTER_KERNEL_BUILDER(
     .Device(DEVICE_CPU)
     .TypeConstraint<double>("T"),
     MessagePassingOp<CPUDevice, double>);
-REGISTER_KERNEL_BUILDER(
+/*REGISTER_KERNEL_BUILDER(
     Name("MessagePassing")
     .Device(DEVICE_GPU)
     .TypeConstraint<float>("T"),
@@ -142,4 +142,4 @@ REGISTER_KERNEL_BUILDER(
     Name("MessagePassing")
     .Device(DEVICE_GPU)
     .TypeConstraint<double>("T"),
-    MessagePassingOp<GPUDevice, double>);
+    MessagePassingOp<GPUDevice, double>);*/
