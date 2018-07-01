@@ -76,6 +76,7 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 	crf_mean_loss = tf.reduce_mean(crf_loss)
 	crf_op = tf.train.AdamOptimizer(learning_rate = 1e-4).minimize(crf_loss, global_step = crf_step)
 	crf_acc = tf.reduce_mean(tf.cast(tf.argmax(crf_out, -1) == tf.argmax(gt, -1), tf.float32))
+	crf_softmax = tf.nn.softmax(crf_out)
 
 	reader = pywrap_tensorflow.NewCheckpointReader(model_path)
 	restore_dict = dict()
@@ -110,10 +111,15 @@ def main(train_type='Resnet', restore=False, maxiter=10, test=False):
 		val_handle = sess.run(val_handle)
 
 		if test:
+			if train_type == "Deep":
+				pair = [imgs, pred_softmax]
+			elif train_type in ["CRF-only", "CRF"]:
+				pair = [imgs, crf_softmax]
+
 			sess.run(val_iter.initializer)
 			cnt = 0
 			for epoc in range(100):
-				img, pred = sess.run([imgs, pred_softmax], feed_dict = {handle: val_handle})
+				img, pred = sess.run(pair, feed_dict = {handle: val_handle})
 				print('iter%d' % epoc)
 				for i in range(img.shape[0]):
 					plot.draw_raw_image(img[i][:,:,::-1], "./test/img_%d_raw.jpg"%cnt)
