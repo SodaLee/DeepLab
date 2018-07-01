@@ -64,6 +64,7 @@ def crf_cell(H, U, raw, kernels, name):
 			Q = tf.squeeze(tf.matmul(tf.reshape(Q, [-1, len(kernels)]), weights), -1)
 		compati = tf.get_variable("compatibility_matrix", [nclass, nclass], initializer = tf.random_uniform_initializer())
 		compati = compati - tf.diag(tf.diag_part(compati))
+		compati = tf.nn.relu6(compati)
 		Q = tf.reshape(tf.matmul(tf.reshape(Q, [-1, nclass]), compati), tf.shape(U))
 		Q = U - Q
 		return Q
